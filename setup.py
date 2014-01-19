@@ -56,7 +56,7 @@ setup(
     name=PROJECT,
     version=VERSION,
     description=DESC,
-    license=license,
+    license=read_file('LICENSE.txt'),
     long_description=read_file('README.md'),
     #source_label=SOURCE_LABEL,
     author=AUTHOR,
