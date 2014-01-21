@@ -3,7 +3,7 @@
 '''
 This software is released under an MIT/X11 open source license.
 
-Copyright 2013 Diffeo, Inc.
+Copyright 2013-2014 Diffeo, Inc.
 
 
 Loads a yaml file (with extensions) and makes it available globally to a Python application.
@@ -39,7 +39,7 @@ set_runtime_args_dict(args)
 
 Set a dictionary to be reference by !runtime directives in the config yaml.
 '''
-
-from .yakonfig import *
+from __future__ import absolute_import
+from yakonfig.yakonfig import *
 
 

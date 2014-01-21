@@ -1,9 +1,7 @@
-#!python
-
 '''
 This software is released under an MIT/X11 open source license.
 
-Copyright 2013 Diffeo, Inc.
+Copyright 2013-2014 Diffeo, Inc.
 '''
 
 import pdb
@@ -13,6 +11,7 @@ import yaml
 
 
 __all__ = [
+    'set_global_config',
     'get_global_config',
     'set_runtime_args_object',
     'set_runtime_args_dict',
@@ -73,12 +72,11 @@ Loader.add_constructor('!include', Loader.include)
 Loader.add_constructor('!runtime', Loader.runtime)
 
 
-def get_global_config(path=None, stream=None):
-    """Usage: call this once from main() with a path or stream
-    object. Everywhere else in your application call it with no
-    arguments to get the cached global config dictionary.
+def set_global_config(path=None, stream=None):
+    """Usage: call this from main() with a path or stream object.
     Calling it repeatedly with the same path is safe.
     """
+    assert path or stream
     global _config_file_path
     global _config_cache
     if path is None:
@@ -107,3 +105,12 @@ def get_global_config(path=None, stream=None):
     # TODO: convert to frozen dict?
     return _config_cache
 
+def get_global_config(top_level_name=None):
+    global _config_cache
+    if top_level_name is not None:
+        if top_level_name not in _config_cache:
+            raise KeyError('%r not in %r' % (top_level_name, _config_cache.keys()))
+        else:
+            return _config_cache.get(top_level_name)
+    else:
+        return _config_cache
