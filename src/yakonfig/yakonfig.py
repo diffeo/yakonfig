@@ -108,7 +108,9 @@ def set_global_config(path=None, stream=None):
 def get_global_config(top_level_name=None):
     global _config_cache
     if top_level_name is not None:
-        if top_level_name not in _config_cache:
+        if _config_cache is None:
+            raise KeyError('_config_cache has not been set, so %s is not in it' % top_level_name)
+        elif top_level_name not in _config_cache:
             raise KeyError('%r not in %r' % (top_level_name, _config_cache.keys()))
         else:
             return _config_cache.get(top_level_name)
