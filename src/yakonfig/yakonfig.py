@@ -3,12 +3,14 @@ This software is released under an MIT/X11 open source license.
 
 Copyright 2013-2014 Diffeo, Inc.
 '''
-
+import importlib
+import logging
 import pdb
 import os
 
 import yaml
 
+logger = logging.getLogger('yakonfig')
 
 __all__ = [
     'set_global_config',
@@ -45,6 +47,7 @@ def set_runtime_args_dict(args):
 class Loader(yaml.Loader):
 
     def __init__(self, stream):
+        ## find root path for !include relative path
         streamname = getattr(stream, 'name', None)
         if streamname:
             self._root = os.path.dirname(streamname)
@@ -52,23 +55,61 @@ class Loader(yaml.Loader):
             self._root = None
         super(Loader, self).__init__(stream)
 
-    def include(self, node):
-        if self._root:
-            filename = os.path.join(self._root, self.construct_scalar(node))
+    def include_func(self, node):
+        '''
+        call a python function to inject values into the yaml, such as
+        a function that provides default yaml for loading.
+        '''
+        mod_name = self.construct_scalar(node)
+        parts = mod_name.split('.')
+        if not len(parts) >= 2:
+            raise Exception('!include_func expects full.path.to.func(), not %r' % mod_name)
+        func_name = parts[-1]
+        mod_name = '.'.join(parts[:-1])
+        mod = importlib.import_module(mod_name)
+        func = getattr(mod, func_name, None)
+        if not func:
+            raise Exception('%r not found in %r, dir(%r) = %r' % (func_name, mod_name, mod_name, dir(mod)))
+
+        if func_name.endswith('yaml'):
+            ## functions named ".*yaml$" must return YAML to which we
+            ## apply this Loader
+            return yaml.load(func(), Loader)
         else:
-            filename = self.construct_scalar(node)
-        with open(filename, 'r') as fin:
+            return func()
+
+    def include_yaml(self, node):
+        '''
+        load another yaml file from the path specified by node's value
+        '''
+        filename = self.construct_scalar(node)
+        if not filename.startswith('/'):
+            if self._root is None:
+                raise Exception('!include %s is a relative path, but stream lacks path' % filename)
+            filename = os.path.join(self._root, self.construct_scalar(node))
+        with self.open(filename, 'r') as fin:
             return yaml.load(fin, Loader)
 
+    def open(self, *args, **kwargs):
+        '''
+        method that looks like the regular python builtin `open`, and
+        an be replaced by tests with different behavior
+        '''
+        return open(*args, **kwargs)
+
     def runtime(self, node):
-        #pdb.set_trace()
+        '''
+        provide !runtime values from having set_runtime_args_dict or
+        set_runtime_args_object
+        '''
         runtimedict = _runtime_args_dict or vars(_runtime_args_object)
         if (node is None) or (not node.value):
             return runtimedict  # with no specifier, return the whole thing
         return runtimedict.get(node.value)
 
 
-Loader.add_constructor('!include', Loader.include)
+Loader.add_constructor('!include_func', Loader.include_func)
+Loader.add_constructor('!include_yaml', Loader.include_yaml)
 Loader.add_constructor('!runtime', Loader.runtime)
 
 
