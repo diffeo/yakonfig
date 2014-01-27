@@ -10,7 +10,7 @@ from yakonfig import \
     set_global_config, get_global_config, \
     set_runtime_args_object, set_runtime_args_dict
 
-from test.yakonfig.setup_logging import logger
+from tests.yakonfig.setup_logging import logger
 
 ## for use in two fixtures
 import yakonfig.yakonfig as yakonfig_internals
@@ -190,7 +190,7 @@ app_one:
 
 app_two:
   bad: [cat, horse]
-  good: !include_func test.yakonfig.test_yakonfig.func_that_makes_yaml
+  good: !include_func tests.yakonfig.test_yakonfig.func_that_makes_yaml
 ''')
     config = set_global_config(stream=YAML_TEXT_TWO)
     assert get_global_config() is config
