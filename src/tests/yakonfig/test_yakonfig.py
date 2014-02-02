@@ -199,3 +199,16 @@ app_two:
     assert sub_config is config['app_two']
     assert sub_config['good'] == dict(k9=dict(g4='FISH'))
 
+
+def test_include_runtime(reset_globals):
+    t1 = tempfile.NamedTemporaryFile()
+    t1.write('k3: golden')
+    t1.flush()
+    ## make the yaml file's name appear as a command line input
+    set_runtime_args_dict(dict(two=t1.name))
+    YAML_TEXT_TWO = StringIO('''
+one: !include_runtime two
+''')
+    config = set_global_config(stream=YAML_TEXT_TWO)
+    assert config == dict(one=dict(k3='golden'))
+

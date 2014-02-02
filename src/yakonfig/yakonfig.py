@@ -85,7 +85,23 @@ class Loader(yaml.Loader):
         filename = self.construct_scalar(node)
         if not filename.startswith('/'):
             if self._root is None:
-                raise Exception('!include %s is a relative path, but stream lacks path' % filename)
+                raise Exception('!include_yaml %s is a relative path, but stream lacks path' % filename)
+            filename = os.path.join(self._root, self.construct_scalar(node))
+        with self.open(filename, 'r') as fin:
+            return yaml.load(fin, Loader)
+
+    def include_runtime(self, node):
+        '''
+        load another yaml file from the path specified by runtime arg
+        named by node's value
+        '''
+        runtimedict = _runtime_args_dict or vars(_runtime_args_object)
+        filename = runtimedict.get(node.value)
+        if filename is None:
+            raise Exception('%r not in runtime args: %r' % (node.value, runtimedict))
+        if not filename.startswith('/'):
+            if self._root is None:
+                raise Exception('!include_runtime %s is a relative path, but stream lacks path' % filename)
             filename = os.path.join(self._root, self.construct_scalar(node))
         with self.open(filename, 'r') as fin:
             return yaml.load(fin, Loader)
@@ -108,6 +124,7 @@ class Loader(yaml.Loader):
         return runtimedict.get(node.value)
 
 
+Loader.add_constructor('!include_runtime', Loader.include_runtime)
 Loader.add_constructor('!include_func', Loader.include_func)
 Loader.add_constructor('!include_yaml', Loader.include_yaml)
 Loader.add_constructor('!runtime', Loader.runtime)
