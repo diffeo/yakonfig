@@ -137,6 +137,8 @@ def set_global_config(path=None, stream=None):
     """
     if path is None and stream is None:
         raise Exception('set_global_config requires either "path" or "stream"')
+    if path is not None and stream is not None:
+        raise Exception('set_global_config cannot process both "path" and "stream"')
     global _config_file_path
     global _config_cache
     if path is None:
@@ -151,14 +153,11 @@ def set_global_config(path=None, stream=None):
             raise Exception("disparate paths attempted to be used for global config path: %r %r" % (_config_file_path, path))
 
     if _config_cache is not None:
-        assert not stream
-        return _config_cache
+        logger.warn('resetting config to all new values')
 
     if path:
-        assert not stream
         fin = open(path)
     else:
-        assert stream
         fin = stream
 
     _config_cache = yaml.load(fin, Loader)
