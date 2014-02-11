@@ -17,6 +17,7 @@ __all__ = [
     'get_global_config',
     'set_runtime_args_object',
     'set_runtime_args_dict',
+    'Loader',
 ]
 
 
@@ -134,7 +135,8 @@ def set_global_config(path=None, stream=None):
     """Usage: call this from main() with a path or stream object.
     Calling it repeatedly with the same path is safe.
     """
-    assert path or stream
+    if path is None and stream is None:
+        raise Exception('set_global_config requires either "path" or "stream"')
     global _config_file_path
     global _config_cache
     if path is None:
