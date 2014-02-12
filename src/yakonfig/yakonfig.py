@@ -3,6 +3,7 @@ This software is released under an MIT/X11 open source license.
 
 Copyright 2013-2014 Diffeo, Inc.
 '''
+import collections
 import importlib
 import logging
 import pdb
@@ -13,6 +14,7 @@ import yaml
 logger = logging.getLogger('yakonfig')
 
 __all__ = [
+    'clear_global_config',
     'set_global_config',
     'get_global_config',
     'set_runtime_args_object',
@@ -131,36 +133,51 @@ Loader.add_constructor('!include_yaml', Loader.include_yaml)
 Loader.add_constructor('!runtime', Loader.runtime)
 
 
-def set_global_config(path=None, stream=None):
-    """Usage: call this from main() with a path or stream object.
-    Calling it repeatedly with the same path is safe.
+def clear_global_config():
+    global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
+    _config_cache = None
+    _runtime_args_object = None
+    _runtime_args_dict = None
+    _config_file_path = None
+
+
+def set_global_config(path_dict_or_stream):
+    """Usage: call this from main() with a file system path, stream
+    object, or a dict.  Calling it repeatedly with the same path is
+    safe.  Calling it with a different path or repeatedly with a
+    stream or dict requires an explicit call to clear_global_config.
     """
-    if path is None and stream is None:
-        raise Exception('set_global_config requires either "path" or "stream"')
-    if path is not None and stream is not None:
-        raise Exception('set_global_config cannot process both "path" and "stream"')
+    path = None
+    mapping = None
+    stream = None
+
     global _config_file_path
     global _config_cache
-    if path is None:
-        path = _config_file_path
-        # TODO: os.environ[{$0}_CONFIG] ?
+
+    if isinstance(path_dict_or_stream, basestring):
+        path = path_dict_or_stream
+        if _config_file_path and _config_file_path != path:
+            raise Exception('set_global_config(%r) differs from %r, consider calling clear_global_config first' % (path, _config_file_path))
+        _config_file_path = path
+        stream = open(path)
+
+    elif isinstance(path_dict_or_stream, collections.Mapping):
+        mapping = path_dict_or_stream
+
+    elif hasattr(path_dict_or_stream, 'read'):
+        stream = path_dict_or_stream
+
     else:
-        if _config_file_path is None:
-            _config_file_path = path
-        elif _config_file_path == path:
-            pass  # okay!
-        else:
-            raise Exception("disparate paths attempted to be used for global config path: %r %r" % (_config_file_path, path))
+        raise Exception('set_global_config(%r) instead of a path, mapping object, or stream open for reading' % path_dict_or_stream)
+
+    if stream is not None:
+        mapping = yaml.load(stream, Loader)
 
     if _config_cache is not None:
         logger.warn('resetting config to all new values')
 
-    if path:
-        fin = open(path)
-    else:
-        fin = stream
+    _config_cache = mapping
 
-    _config_cache = yaml.load(fin, Loader)
     # TODO: convert to frozen dict?
     return _config_cache
 

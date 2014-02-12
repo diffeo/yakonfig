@@ -8,11 +8,12 @@ from StringIO import StringIO
 
 from yakonfig import \
     set_global_config, get_global_config, \
+    clear_global_config, \
     set_runtime_args_object, set_runtime_args_dict
 
 from tests.yakonfig.setup_logging import logger
 
-## for use in two fixtures
+## for use in fixture below
 import yakonfig.yakonfig as yakonfig_internals
 
 @pytest.fixture
@@ -21,10 +22,7 @@ def reset_globals(request):
     for fixture that makes each test run as if it were the first call
     to yakonfig
     '''
-    yakonfig_internals._config_cache = None
-    yakonfig_internals._runtime_args_object = None
-    yakonfig_internals._runtime_args_dict = None
-    yakonfig_internals._config_file_path = None
+    clear_global_config()
 
 
 def test_yakonfig_simple(reset_globals):
@@ -32,7 +30,7 @@ def test_yakonfig_simple(reset_globals):
 pipeline_property1: run_fast
 pipeline_property2: no_errors
 ''')
-    config = set_global_config(stream=YAML_TEXT_ONE)
+    config = set_global_config(YAML_TEXT_ONE)
 
     assert get_global_config() is config
 
@@ -54,7 +52,7 @@ runtime_all: !runtime
 runtime_one: !runtime one
 runtime_two: !runtime two
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
 
     assert get_global_config() is config
 
@@ -75,7 +73,7 @@ runtime_all: !runtime
 runtime_one: !runtime one
 runtime_two: !runtime two
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
     
     assert get_global_config() is config
 
@@ -97,7 +95,7 @@ app_one:
 app_two:
   bad: [cat, horse]
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
     
     assert get_global_config() is config
     sub_config = get_global_config('app_one')
@@ -138,7 +136,7 @@ app_two:
   bad: [cat, horse]
   good: !include_yaml /some-path-that-will-not-be-used
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
     
     assert get_global_config() is config
     sub_config = get_global_config('app_two')
@@ -167,7 +165,7 @@ t1:
     t2.flush()
     t3.flush()
 
-    config = set_global_config(path=t1.name)
+    config = set_global_config(t1.name)
     assert get_global_config() is config
     print config
     sub_config = get_global_config('t1')
@@ -192,7 +190,7 @@ app_two:
   bad: [cat, horse]
   good: !include_func tests.yakonfig.test_yakonfig.func_that_makes_yaml
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
     assert get_global_config() is config
     assert get_global_config('app_one') == dict(one='car')
     sub_config = get_global_config('app_two')
@@ -209,6 +207,6 @@ def test_include_runtime(reset_globals):
     YAML_TEXT_TWO = StringIO('''
 one: !include_runtime two
 ''')
-    config = set_global_config(stream=YAML_TEXT_TWO)
+    config = set_global_config(YAML_TEXT_TWO)
     assert config == dict(one=dict(k3='golden'))
 
