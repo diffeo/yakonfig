@@ -11,14 +11,26 @@ Loads a yaml file (with extensions) and makes it available globally to a Python 
 
 YAML extensions:
 
-key: !include path
+key: !runtime [rkey]
+
+From some runtime set of options (via argparse or a dict of options) insert that value under key. If 'rkey' is specified then do dict or property access by that name and use that value instead of the whole. [See set_runtime_args_dict(args)]
+
+
+key: !include_yaml path
 
 Loads a yaml file at path and inserts it as the value associated with key.
 
 
-key: !runtime [rkey]
+key: !include_func package.path.to.func
 
-From some runtime set of options (via argparse or a dict of options) insert that value under key. If 'rkey' is specified then do dict or property access by that name and use that value instead of the whole.
+Calls a python function. from a fully specified name of package.func
+If the function name ends in "yaml" the return value is interpreted as a yaml document body in a string and parsed. Otherwise the return value is assumed to be a dict or other object that can be simply assigned to they key at this point in the yaml file.
+
+
+key: !include_runtime rkey
+
+Like !runtime pulls a value from input to set_runtime_args_dict(), but uses that value as a path as in !include_yaml, reading that file and parsing it and inserting it at this point in the enclosing yaml file.
+
 
 
 get_global_config(path=None, stream=None)
