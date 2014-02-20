@@ -43,8 +43,9 @@ def set_runtime_args_dict(args):
     """Set a dictionary of global options. Will be used for substituting into !runtime values in the config yaml."""
     global _runtime_args_object
     global _runtime_args_dict
-    _runtime_args_dict = args
-    _runtime_args_object = None
+    if args:
+        _runtime_args_dict = args
+        _runtime_args_object = None
 
 
 class Loader(yaml.Loader):
@@ -98,6 +99,8 @@ class Loader(yaml.Loader):
         load another yaml file from the path specified by runtime arg
         named by node's value
         '''
+        if _runtime_args_dict is None and _runtime_args_object is None:
+            raise Exception('!runtime requires a prior call to set_runtime_args_dict or set_runtime_args_object')
         runtimedict = _runtime_args_dict or vars(_runtime_args_object)
         filename = runtimedict.get(node.value)
         if filename is None:
@@ -121,6 +124,8 @@ class Loader(yaml.Loader):
         provide !runtime values from having set_runtime_args_dict or
         set_runtime_args_object
         '''
+        if _runtime_args_dict is None and _runtime_args_object is None:
+            raise Exception('!runtime requires a prior call to set_runtime_args_dict or set_runtime_args_object')
         runtimedict = _runtime_args_dict or vars(_runtime_args_object)
         if (node is None) or (not node.value):
             return runtimedict  # with no specifier, return the whole thing
