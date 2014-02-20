@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 '''
 This software is released under an MIT/X11 open source license.
 
