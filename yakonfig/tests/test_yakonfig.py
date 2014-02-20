@@ -1,20 +1,23 @@
 #!python
 
+from __future__ import absolute_import
 import argparse
-import pytest
+import logging
 import os
 import tempfile
 from StringIO import StringIO
+
+import pytest
 
 from yakonfig import \
     set_global_config, get_global_config, \
     clear_global_config, \
     set_runtime_args_object, set_runtime_args_dict
 
-from tests.yakonfig.setup_logging import logger
-
 ## for use in fixture below
 import yakonfig.yakonfig as yakonfig_internals
+
+logger = logging.getLogger(__name__)
 
 @pytest.fixture
 def reset_globals(request):
@@ -188,7 +191,7 @@ app_one:
 
 app_two:
   bad: [cat, horse]
-  good: !include_func tests.yakonfig.test_yakonfig.func_that_makes_yaml
+  good: !include_func yakonfig.tests.test_yakonfig.func_that_makes_yaml
 ''')
     config = set_global_config(YAML_TEXT_TWO)
     assert get_global_config() is config

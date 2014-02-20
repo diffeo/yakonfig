@@ -49,7 +49,7 @@ class PyTest(Command):
         site.main()
         print sys.path
         pytest = __import__('pytest')
-        if pytest.main(['-n', '8', '-vvs', 'src']):
+        if pytest.main(['-n', '8', '-vvs', 'yakonfig']):
             sys.exit(1)
 
 setup(
@@ -62,8 +62,7 @@ setup(
     author=AUTHOR,
     author_email=AUTHOR_EMAIL,
     url=URL,
-    packages = find_packages('src'),
-    package_dir = {'': 'src'},
+    packages = find_packages(),
     cmdclass={'test': PyTest,},
     classifiers=[
         'Development Status :: 3 - Alpha',
