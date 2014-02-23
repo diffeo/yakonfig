@@ -347,3 +347,14 @@ def test_cli_overlay(request):
         assert c['config']['k'] == 'y' # from the command line
     finally:
         yakonfig.clear_global_config()
+
+def test_check_dependent():
+    # give an invalid configuration for args; but it's not the "real"
+    # application so it shouldn't be checked
+    with yakonfig.defaulted_config([ConfigurableArgs(), ConfigurableLike],
+                                   {'key': 'value'}) as config:
+        assert sorted(config.iterkeys()) == ['config', 'configurable']
+        with pytest.raises(yakonfig.ConfigurationError):
+            yakonfig.check_toplevel_config(ConfigurableArgs(), 'test')
+        with pytest.raises(yakonfig.ConfigurationError):
+            yakonfig.check_toplevel_config(ConfigurableTop, 'test')

@@ -88,7 +88,11 @@ def parse_args(parser, modules, args=None):
     # At this point, if there is a config error, relay it via
     # the argparse mechanism
     try:
-        validate_config(config, modules)
+        if len(modules) > 0:
+            mod = modules[-1]
+            checker = getattr(mod, 'check_config', None)
+            if checker is not None:
+                checker(config[mod.config_name], mod.config_name)
     except yakonfig.ConfigurationError, e:
         parser.error(e)
     yakonfig.set_global_config(config)
@@ -123,8 +127,11 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
                 file_config = y.load(f)
         config = overlay_config(config, file_config)
     fill_in_arguments(config, modules, params)
-    if validate:
-        validate_config(config, modules)
+    if validate and len(modules) > 0:
+        mod = modules[-1]
+        checker = getattr(mod, 'check_config', None)
+        if checker is not None:
+            checker(config[mod.config_name], mod.config_name)
     yakonfig.set_global_config(config)
     return config
 
@@ -158,6 +165,31 @@ def defaulted_config(modules, params={}, yaml=None, filename=None,
         set_default_config(modules, params=params, yaml=yaml,
                            filename=filename, validate=validate)
         yield yakonfig.get_global_config()
+
+def check_toplevel_config(what, who):
+    """Verify that some dependent configuration is present and correct.
+
+    This will generally be called from a `check_config` implementation.
+    `what` is a Configurable-like object.  If the corresponding
+    configuration isn't present in the global configuration, raise a
+    `ConfigurationError` explaining that `who` required it.  Otherwise
+    call that module's `check_config` (if any).
+
+    :param Configurable what: top-level module to require
+    :param str who: name of the requiring module
+    :raise ConfigurationError: if configuration for `what` is missing
+      or incorrect
+
+    """
+    config_name = what.config_name
+    config = yakonfig.get_global_config()
+    if config_name not in config:
+        raise yakonfig.ConfigurationError(
+            '{} requires top-level configuration for {}'
+            .format(who, config_name))
+    checker = getattr(what, 'check_config', None)
+    if checker:
+        checker(config[config_name], config_name)
 
 def _walk_config(config, modules, f, prefix='', required=True):
     """Recursively walk through a module list.
@@ -275,23 +307,6 @@ def fill_in_arguments(config, modules, args):
                 config[cname] = v
     if not isinstance(args, collections.Mapping):
         args = vars(args)
-    return _walk_config(config, modules, work_in)
-
-def validate_config(config, modules):
-    """Check the configuration for correctness.
-
-    This calls all of modules' `check_config` functions.
-
-    :param dict config: configuration tree to check
-    :param iterable modules: modules or Configurable instances to use
-    :return: config
-    :raise yakonfig.ConfigurationError: on consistency issue
-
-    """
-    def work_in(config, module, name):
-        checker = getattr(module, 'check_config', None)
-        if checker is not None:
-            checker(config, name)
     return _walk_config(config, modules, work_in)
 
 def overlay_config(c0, c1):
