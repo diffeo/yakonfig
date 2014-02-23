@@ -99,7 +99,7 @@ def parse_args(parser, modules, args=None):
     return namespace
 
 def set_default_config(modules, params={}, yaml=None, filename=None,
-                       validate=True):
+                       config=None, validate=True):
     """Set up global configuration for tests and noninteractive tools.
 
     `modules` is an iterable of `yakonfig.Configurable' objects, or
@@ -113,31 +113,36 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     :param dict params: dictionary of command-line argument key to values
     :param str yaml: global configuration file
     :param str filename: location of global configuration file
+    :param dict config: global configuration object
     :param bool validate: check configuration after creating
     :return: the new global configuration
 
     """
-    config = assemble_default_config(modules)
-    if yaml is not None or filename is not None:
+    default_config = assemble_default_config(modules)
+    if yaml is None and filename is None and config is None:
+        base_config = default_config
+    if yaml is not None or filename is not None or config is not None:
         import yaml as y
         if yaml is not None:
             file_config = y.load(StringIO(yaml))
         elif filename is not None:
             with open(filename, 'r') as f:
                 file_config = y.load(f)
-        config = overlay_config(config, file_config)
-    fill_in_arguments(config, modules, params)
+        elif config is not None:
+            file_config = config
+        base_config = overlay_config(default_config, file_config)
+    fill_in_arguments(base_config, modules, params)
     if validate and len(modules) > 0:
         mod = modules[-1]
         checker = getattr(mod, 'check_config', None)
         if checker is not None:
-            checker(config[mod.config_name], mod.config_name)
-    yakonfig.set_global_config(config)
-    return config
+            checker(base_config[mod.config_name], mod.config_name)
+    yakonfig.set_global_config(base_config)
+    return base_config
 
 @contextlib.contextmanager
 def defaulted_config(modules, params={}, yaml=None, filename=None,
-                     validate=True):
+                     config=None, validate=True):
     """Context manager version of `set_default_config()`.
 
     Use this with a Python 'with' statement, like
@@ -157,13 +162,14 @@ def defaulted_config(modules, params={}, yaml=None, filename=None,
     :param dict params: dictionary of command-line argument key to values
     :param str yaml: global configuration file
     :param str filename: location of global configuration file
+    :param dict config: global configuration object
     :param bool validate: check configuration after creating
     :return: the new global configuration
 
     """
     with _temporary_config():
         set_default_config(modules, params=params, yaml=yaml,
-                           filename=filename, validate=validate)
+                           filename=filename, config=config, validate=validate)
         yield yakonfig.get_global_config()
 
 def check_toplevel_config(what, who):

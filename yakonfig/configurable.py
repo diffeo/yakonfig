@@ -35,6 +35,8 @@ from __future__ import absolute_import
 import abc
 import collections
 
+import yakonfig
+
 class Configurable(object):
     """Description of yakonfig configuration.
 
@@ -146,12 +148,10 @@ def check_subconfig(config, name, sub):
 
     """
     subname = sub.config_name
-    if subname not in config:
-        raise ProgrammerError('no configuration for {} in {}'
-                              .format(subname, name))
-    subconfig = config[subname]
+    subconfig = config.setdefault(subname, {})
     if not isinstance(subconfig, collections.Mapping):
-        raise ProgrammerError('configuration for {} in {} must be a mapping'
+        raise yakonfig.ProgrammerError('configuration for {} in {} '
+                                       'must be a mapping'
                               .format(subname, name))
     checker = getattr(sub, 'check_config', None)
     if checker is not None:
