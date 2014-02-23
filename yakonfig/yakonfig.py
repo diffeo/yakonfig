@@ -3,7 +3,9 @@ This software is released under an MIT/X11 open source license.
 
 Copyright 2013-2014 Diffeo, Inc.
 '''
+from __future__ import absolute_import
 import collections
+import contextlib
 import importlib
 import logging
 import pdb
@@ -12,16 +14,6 @@ import os
 import yaml
 
 logger = logging.getLogger('yakonfig')
-
-__all__ = [
-    'clear_global_config',
-    'set_global_config',
-    'get_global_config',
-    'set_runtime_args_object',
-    'set_runtime_args_dict',
-    'Loader',
-]
-
 
 _runtime_args_object = None
 _runtime_args_dict = None
@@ -186,14 +178,45 @@ def set_global_config(path_dict_or_stream):
     # TODO: convert to frozen dict?
     return _config_cache
 
-def get_global_config(top_level_name=None):
+def get_global_config(*args):
+    """Get (a subset of) the global configuration.
+
+    If no arguments are provided, returns the entire configuration.
+    Otherwise, start with the entire configuration, and get the item
+    named by the first parameter; then search that for the second
+    parameter; and so on.
+
+    :param args: configuration name path to fetch
+    :return: configuration item or subtree
+    :raise KeyError: if an argument is missing
+
+    """
     global _config_cache
-    if top_level_name is not None:
-        if _config_cache is None:
-            raise KeyError('_config_cache has not been set, so %s is not in it' % top_level_name)
-        elif top_level_name not in _config_cache:
-            raise KeyError('%r not in %r' % (top_level_name, _config_cache.keys()))
-        else:
-            return _config_cache.get(top_level_name)
-    else:
-        return _config_cache
+    c = _config_cache
+    if c is None:
+        if len(args) == 0: args = (None,)
+        raise KeyError(args[0])
+    for a in args:
+        c = c[a]
+    return c
+
+@contextlib.contextmanager
+def _temporary_config():
+    """Temporarily replace the global configuration.
+
+    Use this in a 'with' statement.  The inner block may freely manipulate
+    the global configuration; the original global configuration is restored
+    at exit.
+
+    """
+    global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
+    old_cc = _config_cache
+    old_cfp = _config_file_path
+    old_rao = _runtime_args_object
+    old_rad = _runtime_args_dict
+    clear_global_config()
+    yield
+    _config_cache = old_cc
+    _config_file_path = old_cfp
+    _runtime_args_object = old_rao
+    _runtime_args_dict = old_rad

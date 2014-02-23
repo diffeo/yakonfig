@@ -46,6 +46,7 @@ class ConfigurableArgs(yakonfig.Configurable):
 class ConfigurableBottom(object):
     config_name = 'bottom'
     default_config = { 'zzz': '-32768' }
+    @staticmethod
     def add_arguments(parser):
         parser.add_argument('--zzz', '-z')
     runtime_keys = { 'zzz': 'zzz' }
@@ -54,6 +55,7 @@ class ConfigurableTop(object):
     config_name = 'top'
     default_config = { 'aaa': 'bbb' }
     sub_modules = [ConfigurableBottom]
+    @staticmethod
     def add_arguments(parser):
         parser.add_argument('--aaa', '-a')
     runtime_keys = { 'aaa': 'aaa' }
@@ -145,6 +147,19 @@ def test_fill_in_object():
     assert sorted(cc.iterkeys()) == ['key']
     assert cc['key'] == 'value'    
 
+def test_default_file(request):
+    yakonfig.set_default_config(
+        [ConfigurableArgs()],
+        filename=str(request.fspath.dirpath('argconfig.yaml')))
+    try:
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['config']
+        cc = c['config']
+        assert sorted(cc.iterkeys()) == ['k']
+        assert cc['k'] == 'x'
+    finally:
+        yakonfig.clear_global_config()
+
 def test_fill_in_kvp():
     yakonfig.set_default_config([ConfigurableLike], { 'key': 'value' })
     try:
@@ -154,6 +169,54 @@ def test_fill_in_kvp():
         assert sorted(cc.iterkeys()) == ['key', 'type']
         assert cc['type'] == 'class'
         assert cc['key'] == 'value'
+    finally:
+        yakonfig.clear_global_config()
+
+def test_prog_yaml():
+    the_yaml = """
+configurable:
+    key: yaml
+"""
+    yakonfig.set_default_config([ConfigurableLike], yaml=the_yaml)
+    try:
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['configurable']
+        cc = c['configurable']
+        assert sorted(cc.iterkeys()) == ['key', 'type']
+        assert cc['type'] == 'class'
+        assert cc['key'] == 'yaml'
+    finally:
+        yakonfig.clear_global_config()
+
+def test_prog_yaml():
+    # like from the command line, values via params overrides explicit yaml
+    the_yaml = """
+configurable:
+    key: yaml
+"""
+    yakonfig.set_default_config([ConfigurableLike],
+                                params={'key': 'value'},
+                                yaml=the_yaml)
+    try:
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['configurable']
+        cc = c['configurable']
+        assert sorted(cc.iterkeys()) == ['key', 'type']
+        assert cc['type'] == 'class'
+        assert cc['key'] == 'value'
+    finally:
+        yakonfig.clear_global_config()
+
+def test_dont_validate():
+    yakonfig.set_default_config([ConfigurableArgs()],
+                                params={'key': 'longer than one char'},
+                                validate=False)
+    try:
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['config']
+        cc = c['config']
+        assert sorted(cc.iterkeys()) == ['k']
+        assert cc['k'] == 'longer than one char'
     finally:
         yakonfig.clear_global_config()
 

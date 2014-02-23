@@ -30,10 +30,13 @@ Copyright 2014 Diffeo, Inc.
 
 from __future__ import absolute_import
 import collections
+import contextlib
+from cStringIO import StringIO
 
 import yaml
 
 import yakonfig
+from yakonfig.yakonfig import _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
 config_name = 'yakonfig'
@@ -91,25 +94,70 @@ def parse_args(parser, modules, args=None):
     yakonfig.set_global_config(config)
     return namespace
 
-def set_default_config(modules, params={}):
+def set_default_config(modules, params={}, yaml=None, filename=None,
+                       validate=True):
     """Set up global configuration for tests and noninteractive tools.
 
     `modules` is an iterable of `yakonfig.Configurable' objects, or
     anything equivalently typed.  This function iterates through those
-    objects to produce a default configuration, and fills in any
-    values from `params` as though they were command-line arguments.
-    The resulting configuration is set as the global configuration.
+    objects to produce a default configuration, reads `yaml` as though
+    it were the configuration file, and fills in any values from
+    `params` as though they were command-line arguments.  The
+    resulting configuration is set as the global configuration.
 
     :param iterable modules: modules or Configurable instances to use
-    :param params: dictionary of command-line argument key to values
+    :param dict params: dictionary of command-line argument key to values
+    :param str yaml: global configuration file
+    :param str filename: location of global configuration file
+    :param bool validate: check configuration after creating
     :return: the new global configuration
 
     """
     config = assemble_default_config(modules)
+    if yaml is not None or filename is not None:
+        import yaml as y
+        if yaml is not None:
+            file_config = y.load(StringIO(yaml))
+        elif filename is not None:
+            with open(filename, 'r') as f:
+                file_config = y.load(f)
+        config = overlay_config(config, file_config)
     fill_in_arguments(config, modules, params)
-    validate_config(config, modules)
+    if validate:
+        validate_config(config, modules)
     yakonfig.set_global_config(config)
     return config
+
+@contextlib.contextmanager
+def defaulted_config(modules, params={}, yaml=None, filename=None,
+                     validate=True):
+    """Context manager version of `set_default_config()`.
+
+    Use this with a Python 'with' statement, like
+
+    >>> config_yaml = '''
+    ... toplevel:
+    ...   param: value
+    ... '''
+    >>> with yakonfig.defaulted_config([toplevel], yaml=config_yaml) as config:
+    ...    assert 'param' in config['toplevel']
+    ...    assert yakonfig.get_global_config('toplevel', 'param') == 'value'
+
+    On exit the global configuration is restored to its previous state
+    (if any).
+
+    :param iterable modules: modules or Configurable instances to use
+    :param dict params: dictionary of command-line argument key to values
+    :param str yaml: global configuration file
+    :param str filename: location of global configuration file
+    :param bool validate: check configuration after creating
+    :return: the new global configuration
+
+    """
+    with _temporary_config():
+        set_default_config(modules, params=params, yaml=yaml,
+                           filename=filename, validate=validate)
+        yield yakonfig.get_global_config()
 
 def _walk_config(config, modules, f, prefix='', required=True):
     """Recursively walk through a module list.

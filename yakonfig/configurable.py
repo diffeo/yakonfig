@@ -12,6 +12,9 @@ fill in defaults, and produce a complete configuration.
 Only `config_name` is strictly required, the remainder of the
 functions can be absent or have defaults similar to what is here.
 
+Implementations of these methods may also find `check_subconfig`
+useful.
+
 
 Implementation Details
 ======================
@@ -30,6 +33,7 @@ Copyright 2014 Diffeo, Inc.
 
 from __future__ import absolute_import
 import abc
+import collections
 
 class Configurable(object):
     """Description of yakonfig configuration.
@@ -123,3 +127,32 @@ class Configurable(object):
         pass
 
     pass
+
+def check_subconfig(config, name, sub):
+    """Validate the configuration of an object within this.
+
+    This calls `Configurable.check_config()` or equivalent on `sub`.
+    A dictionary configuration for `sub` is required in `config`.
+
+    >>> def check_config(config, name):
+    ...     for sub in sub_modules:
+    ...         check_subconfig(config, name, sub)
+
+    :param dict config: parent configuration
+    :param str name: name of the parent configuration block
+    :param sub: Configurable-like subobject to check
+    :raise yakonfig.ConfigurationError: if there is no configuration
+      for `sub`, or it is not a dictionary
+
+    """
+    subname = sub.config_name
+    if subname not in config:
+        raise ProgrammerError('no configuration for {} in {}'
+                              .format(subname, name))
+    subconfig = config[subname]
+    if not isinstance(subconfig, collections.Mapping):
+        raise ProgrammerError('configuration for {} in {} must be a mapping'
+                              .format(subname, name))
+    checker = getattr(sub, 'check_config', None)
+    if checker is not None:
+        checker(subconfig, '{}.{}'.format(name, subname))
