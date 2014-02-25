@@ -1,0 +1,3 @@
+# this configuration goes with ConfigurableArgs in test_configurable.py
+config:
+  k: x

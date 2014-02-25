@@ -50,6 +50,11 @@ set_runtime_args_dict(args)
 Set a dictionary to be reference by !runtime directives in the config yaml.
 '''
 from __future__ import absolute_import
-from yakonfig.yakonfig import *
-
-
+from yakonfig.configurable import Configurable, check_subconfig
+from yakonfig.exceptions import *
+from yakonfig.merge import diff_config, overlay_config
+from yakonfig.toplevel import parse_args, set_default_config, \
+    defaulted_config, check_toplevel_config, \
+    config_name, add_arguments, runtime_keys
+from yakonfig.yakonfig import set_runtime_args_object, set_runtime_args_dict, \
+    clear_global_config, set_global_config, get_global_config
