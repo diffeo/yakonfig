@@ -36,6 +36,7 @@ from cStringIO import StringIO
 import yaml
 
 import yakonfig
+from yakonfig.merge import overlay_config
 from yakonfig.yakonfig import _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
@@ -314,36 +315,3 @@ def fill_in_arguments(config, modules, args):
     if not isinstance(args, collections.Mapping):
         args = vars(args)
     return _walk_config(config, modules, work_in)
-
-def overlay_config(c0, c1):
-    """Overlay one configuration over another.
-
-    This overlays `c1` on top of `c0` as follows:
-
-    * If either isn't a dictionary, returns `c1`.
-    * Any key in `c0` not present in `c1` is present in the result with
-      its original value.
-    * Any key in `c1` with value None is not present in the result.
-    * Any key in `c1` not present in `c0` and not None is present in
-      the result with its new value.
-    * Any key in both `c1` and `c0` with a non-None value is
-      recursively overlaid.
-
-    :param dict c0: original configuration
-    :param dict c1: overlay configuration
-    :return: new overlaid configuration
-    :returntype dict:
-
-    """
-    if not isinstance(c0, collections.Mapping): return c1
-    if not isinstance(c1, collections.Mapping): return c1
-    result = dict()
-    for k in c0.iterkeys():
-        if k not in c1:
-            result[k] = c0[k]
-    for k,v in c1.iteritems():
-        if v is not None:
-            if k in c0:
-                v = overlay_config(c0[k], v)
-            result[k] = v
-    return result
