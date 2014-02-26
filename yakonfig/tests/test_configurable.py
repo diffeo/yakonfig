@@ -60,6 +60,12 @@ class ConfigurableTop(object):
         parser.add_argument('--aaa', '-a')
     runtime_keys = { 'aaa': 'aaa' }
 
+class Dependent:
+    config_name = 'dependent'
+    @staticmethod
+    def check_config(config, name):
+        yakonfig.check_toplevel_config(ConfigurableArgs(), name)
+
 @pytest.fixture(params=['object', 'class', 'module'])
 def configurable_type(request):
     return request.param
@@ -358,3 +364,31 @@ def test_check_dependent():
             yakonfig.check_toplevel_config(ConfigurableArgs(), 'test')
         with pytest.raises(yakonfig.ConfigurationError):
             yakonfig.check_toplevel_config(ConfigurableTop, 'test')
+
+def test_check_toplevel():
+    '''check_config_toplevel() should work in check_config() implementation'''
+    with yakonfig.defaulted_config([ConfigurableArgs(), Dependent],
+                                   {'key': 'k'}) as config:
+        assert sorted(config.iterkeys()) == ['config', 'dependent']
+        assert config['config']['k'] == 'k'
+    with pytest.raises(yakonfig.ConfigurationError):
+        with yakonfig.defaulted_config([ConfigurableArgs(), Dependent],
+                                       {'key': 'key'}):
+            pass
+
+def test_check_toplevel_args():
+    '''check_config_toplevel() should work in check_config() implementation'''
+    parser = argparse.ArgumentParser()
+    yakonfig.parse_args(parser, [ConfigurableArgs(), Dependent],
+                        ['--key', 'k'])
+    try:
+        config = yakonfig.get_global_config()
+        assert sorted(config.iterkeys()) == ['config', 'dependent']
+        assert config['config']['k'] == 'k'
+    finally:
+        yakonfig.clear_global_config()
+    parser = argparse.ArgumentParser()
+    with pytest.raises(SystemExit):
+        yakonfig.parse_args(parser, [ConfigurableArgs(), Dependent],
+                            ['--key', 'key'])
+        yakonfig.clear_global_config()

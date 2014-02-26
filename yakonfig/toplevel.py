@@ -93,7 +93,9 @@ def parse_args(parser, modules, args=None):
             mod = modules[-1]
             checker = getattr(mod, 'check_config', None)
             if checker is not None:
-                checker(config[mod.config_name], mod.config_name)
+                with _temporary_config():
+                    yakonfig.set_global_config(config)
+                    checker(config[mod.config_name], mod.config_name)
     except yakonfig.ConfigurationError, e:
         parser.error(e)
     yakonfig.set_global_config(config)
@@ -137,7 +139,9 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
         mod = modules[-1]
         checker = getattr(mod, 'check_config', None)
         if checker is not None:
-            checker(base_config[mod.config_name], mod.config_name)
+            with _temporary_config():
+                yakonfig.set_global_config(base_config)
+                checker(base_config[mod.config_name], mod.config_name)
     yakonfig.set_global_config(base_config)
     return base_config
 
