@@ -73,32 +73,10 @@ def parse_args(parser, modules, args=None):
     """
     collect_add_argparse(parser, modules)
     namespace = parser.parse_args(args)
-
-    config = assemble_default_config(modules)
-
-    # Read the global configuration (if any)
-    config_file = getattr(namespace, 'config', None)
-    if config_file is not None:
-        with open(config_file, 'r') as f:
-            file_config = yaml.load(f)
-        config = overlay_config(config, file_config)
-        
-    # Command-line arguments overwrite the merged config
-    fill_in_arguments(config, modules, namespace)
-
-    # At this point, if there is a config error, relay it via
-    # the argparse mechanism
     try:
-        if len(modules) > 0:
-            mod = modules[-1]
-            checker = getattr(mod, 'check_config', None)
-            if checker is not None:
-                with _temporary_config():
-                    yakonfig.set_global_config(config)
-                    checker(config[mod.config_name], mod.config_name)
+        yakonfig.set_default_config(modules, params=vars(namespace))
     except yakonfig.ConfigurationError, e:
         parser.error(e)
-    yakonfig.set_global_config(config)
     return namespace
 
 def set_default_config(modules, params={}, yaml=None, filename=None,
@@ -121,9 +99,12 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     :return: the new global configuration
 
     """
-    default_config = assemble_default_config(modules)
+
+    # Get the configuration from the file, or from params['config']
+    file_config = {}
     if yaml is None and filename is None and config is None:
-        base_config = default_config
+        if 'config' in params and params['config'] is not None:
+            filename = params['config']
     if yaml is not None or filename is not None or config is not None:
         import yaml as y
         if yaml is not None:
@@ -133,8 +114,27 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
                 file_config = y.load(f)
         elif config is not None:
             file_config = config
-        base_config = overlay_config(default_config, file_config)
+
+    # Assemble the configuration from defaults + file + arguments
+    default_config = assemble_default_config(modules)
+    base_config = overlay_config(default_config, file_config)
     fill_in_arguments(base_config, modules, params)
+    
+    # Replace the modules list (accommodate external modules)
+    def replace_module(config, m):
+        name = getattr(m, 'config_name')
+        c = config.get(name, {})
+        if hasattr(m, 'replace_config'):
+            return getattr(m, 'replace_config')(c, name)
+        return m
+    modules = [replace_module(base_config, m) for m in modules]
+
+    # Reassemble the configuration again
+    default_config = assemble_default_config(modules)
+    base_config = overlay_config(default_config, file_config)
+    fill_in_arguments(base_config, modules, params)
+
+    # Validate the configuration
     if validate and len(modules) > 0:
         mod = modules[-1]
         checker = getattr(mod, 'check_config', None)
@@ -142,6 +142,8 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
             with _temporary_config():
                 yakonfig.set_global_config(base_config)
                 checker(base_config[mod.config_name], mod.config_name)
+
+    # All done, set the global configuration
     yakonfig.set_global_config(base_config)
     return base_config
 

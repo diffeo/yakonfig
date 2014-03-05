@@ -115,6 +115,22 @@ class Configurable(object):
         """
         return {}
 
+    def replace_config(self, config, name=''):
+        '''Look at `config` and return a new `Configurable`.
+
+        This can, for instance, load external modules pointed to by
+        a configuration file, and return a new `ProxyConfigurable`
+        for this with a new `sub_modules` list.  The yakonfig
+        framework will not recursively call this function on submodules.
+
+        :param dict config: configuration of this object and its children
+        :param str name: name of the configuration block
+        :return: a `Configurable` that replaces `self`
+        :raise yakonfig.ConfigurationError: if the new configuration
+          cannot be generated
+        '''
+        return self
+
     def check_config(self, config, name=''):
         """Validate the configuration of this object.
 
@@ -129,6 +145,76 @@ class Configurable(object):
         pass
 
     pass
+
+class ProxyConfigurable(Configurable):
+    '''A yakonfig configurable object that passes calls on to something else.
+
+    The 'config' object can be any any configurable thing, not necessarily
+    a 'Configurable' instance.  Any methods that are not implemented
+    in the 'config' object return default values.
+
+    This class is intended to be used as a base class for
+    `replace_config()` implementations.
+
+    '''
+
+    def __init__(self, config=None, *args, **kwargs):
+        '''Create a new proxy configurable.
+
+        :param Configurable config: object to pass options on to
+
+        '''
+        super(ProxyConfigurable, self).__init__(*args, **kwargs)
+        self.config = config
+
+    def _property(self, name):
+        if hasattr(self.config, name):
+            return getattr(self.config, name)
+        return getattr(super(ProxyConfigurable, self), name)
+
+    @property
+    def config_name(self): return self._property('config_name')
+    @property
+    def default_config(self): return self._property('default_config')
+    @property
+    def sub_modules(self): return self._property('sub_modules')
+
+    def add_arguments(self, parser):
+        if hasattr(self.config, 'add_arguments'):
+            return getattr(self.config, 'add_arguments')(parser)
+        return super(ProxyConfigurable, self).add_arguments(parser)
+
+    @property
+    def runtime_keys(self): return self._property('runtime_keys')
+
+    def replace_config(self, config, name=''):
+        if hasattr(self.config, 'replace_config'):
+            return getattr(self.config, 'replace_config')(config, name)
+        return super(ProxyConfigurable, self).replace_config(config, name)
+
+    def check_config(self, config, name=''):
+        if hasattr(self.config, 'check_config'):
+            return getattr(self.config, 'check_config')(config, name)
+        return super(ProxyConfigurable, self).check_config(config, name)
+
+class NewSubModules(ProxyConfigurable):
+    '''A proxy `Configurable` that only replaces the `sub_modules` list.
+
+    This is expected to be the common use case for `replace_config()`.
+
+    '''
+    def __init__(self, config=None, sub_modules=[], *args, **kwargs):
+        '''Create a new proxy `Configurable` with new `sub_modules`.
+
+        :param config: original `Configurable` object
+        :param sub_modules: new `sub_modules` list
+
+        '''
+        super(NewSubModules, self).__init__(config=config, *args, **kwargs)
+        self._sub_modules = sub_modules
+
+    @property
+    def sub_modules(self): return self._sub_modules
 
 def check_subconfig(config, name, sub):
     """Validate the configuration of an object within this.

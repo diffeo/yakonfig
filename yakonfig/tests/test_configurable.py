@@ -60,6 +60,28 @@ class ConfigurableTop(object):
         parser.add_argument('--aaa', '-a')
     runtime_keys = { 'aaa': 'aaa' }
 
+class ConfigurableAlmostTop(object):
+    config_name = 'top'
+    default_config = { 'aaa': 'bbb' }
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument('--aaa', '-a')
+    runtime_keys = { 'aaa': 'aaa' }
+    @staticmethod
+    def replace_config(config, name):
+        return ConfigurableTop
+
+class ConfigurableLikeTop(object):
+    config_name = 'top'
+    default_config = { 'aaa': 'bbb' }
+    @staticmethod
+    def add_arguments(parser):
+        parser.add_argument('--aaa', '-a')
+    runtime_keys = { 'aaa': 'aaa' }
+    @staticmethod
+    def replace_config(config, name):
+        return yakonfig.NewSubModules(ConfigurableLikeTop, [ConfigurableBottom])
+
 class Dependent:
     config_name = 'dependent'
     @staticmethod
@@ -392,3 +414,34 @@ def test_check_toplevel_args():
         yakonfig.parse_args(parser, [ConfigurableArgs(), Dependent],
                             ['--key', 'key'])
         yakonfig.clear_global_config()
+
+def test_proxy_two_level():
+    with yakonfig.defaulted_config(
+            [yakonfig.ProxyConfigurable(ConfigurableTop)],
+            { 'aaa': 'a', 'bbb': 'b', 'zzz': 'z' }):
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['top']
+        c = c['top']
+        assert sorted(c.iterkeys()) == ['aaa', 'bottom']
+        assert c['aaa'] == 'a'
+        c = c['bottom']
+        assert sorted(c.iterkeys()) == ['zzz']
+        assert c['zzz'] == 'z'
+
+def test_replaces_direct():
+    with yakonfig.defaulted_config([ConfigurableAlmostTop]):
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['top']
+        c = c['top']
+        assert 'bottom' in c
+        c = c['bottom']
+        assert c['zzz'] == '-32768'
+
+def test_replaces_proxy():
+    with yakonfig.defaulted_config([ConfigurableLikeTop]):
+        c = yakonfig.get_global_config()
+        assert sorted(c.iterkeys()) == ['top']
+        c = c['top']
+        assert 'bottom' in c
+        c = c['bottom']
+        assert c['zzz'] == '-32768'
