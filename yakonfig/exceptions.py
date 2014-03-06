@@ -1,10 +1,7 @@
 """Yakonfig exception types.
 
------
-
-This software is released under an MIT/X11 open source license.
-
-Copyright 2014 Diffeo, Inc.
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2014 Diffeo, Inc.
 
 """
 

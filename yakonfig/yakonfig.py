@@ -1,7 +1,29 @@
-'''
-This software is released under an MIT/X11 open source license.
+'''Global configuration state.
 
-Copyright 2013-2014 Diffeo, Inc.
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2013-2014 Diffeo, Inc.
+
+Purpose
+=======
+
+This maintains a global configuration dictionary.
+:func:`get_global_config` will get the entire dictionary, or specific
+keys from it.
+
+Legacy Interface
+================
+
+Older programs directly interact with the global dictionary.  Their
+top-level programs will :func:`set_global_config` with a static YAML
+file, which generally sets values using ``!runtime`` directives.
+These values come from command-line parameters, typically with
+defaults, and the :class:`argparse.Namespace` directory is passed to
+:func:`set_runtime_args_object`.  This causes those values to be
+resolved when :func:`get_global_config` retrieves them.
+
+Module Contents
+===============
+
 '''
 from __future__ import absolute_import
 import collections
@@ -24,7 +46,13 @@ _config_cache = None
 
 
 def set_runtime_args_object(args):
-    """Set an agrguments object, from argparse ArgumentParser.parse_args() or similar. Will be used for substituting into !runtime values in the config yaml."""
+    '''Set values for ``!runtime`` values from an object.
+
+    This is typically a :class:`argparse.Namespace` object.
+
+    :param object args: object to provide runtime values
+
+    '''
     global _runtime_args_object
     global _runtime_args_dict
     _runtime_args_object = args
@@ -32,7 +60,11 @@ def set_runtime_args_object(args):
 
 
 def set_runtime_args_dict(args):
-    """Set a dictionary of global options. Will be used for substituting into !runtime values in the config yaml."""
+    '''Set values for ``!runtime`` values from a dictionary.
+
+    :param dict args: dictionary to provide runtime values
+
+    '''
     global _runtime_args_object
     global _runtime_args_dict
     if args:
@@ -41,6 +73,7 @@ def set_runtime_args_dict(args):
 
 
 class Loader(yaml.Loader):
+    '''YAML loader aware of yakonfig extensions.'''
 
     def __init__(self, stream):
         ## find root path for !include relative path
@@ -131,6 +164,7 @@ Loader.add_constructor('!runtime', Loader.runtime)
 
 
 def clear_global_config():
+    '''Reset the global configuration to an empty state.'''
     global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
     _config_cache = None
     _runtime_args_object = None
@@ -139,11 +173,16 @@ def clear_global_config():
 
 
 def set_global_config(path_dict_or_stream):
-    """Usage: call this from main() with a file system path, stream
+    '''Set the global configuration.
+
+    Call this from `main()` with a file system path, stream
     object, or a dict.  Calling it repeatedly with the same path is
     safe.  Calling it with a different path or repeatedly with a
-    stream or dict requires an explicit call to clear_global_config.
-    """
+    stream or dict requires an explicit call to :func:`clear_global_config`.
+
+    :param path_dict_or_stream: source of configuration
+
+    '''
     path = None
     mapping = None
     stream = None
@@ -179,7 +218,7 @@ def set_global_config(path_dict_or_stream):
     return _config_cache
 
 def get_global_config(*args):
-    """Get (a subset of) the global configuration.
+    '''Get (a subset of) the global configuration.
 
     If no arguments are provided, returns the entire configuration.
     Otherwise, start with the entire configuration, and get the item
@@ -190,7 +229,7 @@ def get_global_config(*args):
     :return: configuration item or subtree
     :raise KeyError: if an argument is missing
 
-    """
+    '''
     global _config_cache
     c = _config_cache
     if c is None:
@@ -202,13 +241,18 @@ def get_global_config(*args):
 
 @contextlib.contextmanager
 def _temporary_config():
-    """Temporarily replace the global configuration.
+    '''Temporarily replace the global configuration.
 
     Use this in a 'with' statement.  The inner block may freely manipulate
     the global configuration; the original global configuration is restored
     at exit.
 
-    """
+    >>> with yakonfig.yakonfig._temporary_config():
+    ...   yakonfig.yakonfig.set_global_config({'a': 'b'})
+    ...   print yakonfig.yakonfig.get_global_config('a')
+    b
+
+    '''
     global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
     old_cc = _config_cache
     old_cfp = _config_file_path

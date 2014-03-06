@@ -1,34 +1,34 @@
 """Base type for objects supporting yakonfig.
 
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2014 Diffeo, Inc.
+
 Purpose
 =======
 
 Provides a common place to declare command-line arguments and default
 configuration to yakonfig.  Configurable object classes can be passed
-into yakonfig.parse_args() This will cause yakonfig to instantiate the
-relevant command-line arguments, parse any inbound YAML configuration,
-fill in defaults, and produce a complete configuration.
+into :func:`yakonfig.toplevel.parse_args`.  This will cause
+yakonfig to instantiate the relevant command-line arguments, parse any
+inbound YAML configuration, fill in defaults, and produce a complete
+configuration.
 
-Only `config_name` is strictly required, the remainder of the
-functions can be absent or have defaults similar to what is here.
+Only :attr:`Configurable.config_name` is strictly required, the
+remainder of the functions can be absent or have defaults similar to
+what is here.
 
-Implementations of these methods may also find `check_subconfig`
+Implementations of these methods may also find :func:`check_subconfig`
 useful.
-
 
 Implementation Details
 ======================
 
-yakonfig.parse_args() doesn't actually require Configurable subclasses
-as its parameter; any object (e.g., module objects) that include the
-required names can be used.
+:func:`yakonfig.toplevel.parse_args` doesn't actually require
+:class:`Configurable` subclasses as its parameter; any object (e.g.,
+module objects) that include the required names can be used.
 
------
-
-This software is released under an MIT/X11 open source license.
-
-Copyright 2014 Diffeo, Inc.
-
+Module Contents
+===============
 """
 
 from __future__ import absolute_import
@@ -44,7 +44,7 @@ class Configurable(object):
     drives the configuration process.  Yakonfig doesn't actually
     require instances of this type, merely objects that provide the
     object and method names described here, and of these only
-    `config_name` is truly required.
+    :attr:`config_name` is truly required.
 
     For instance, if you create a subclass of this and then use
     yakonfig to configure it, yakonfig will fill in the default
@@ -59,15 +59,15 @@ class Configurable(object):
         key: value
 
     If you subclass this, you will need to pass instances of this
-    object to the yakonfig top-level methods, not the class itself.  A
-    corollary to this is that it is possible for the command-line
-    arguments to vary based on parameters to this object's
-    constructor.
+    object to the :module:`yakonfig.toplevel` methods, not the class
+    itself.  A corollary to this is that it is possible for the
+    command-line arguments to vary based on parameters to this
+    object's constructor.
 
     If you want command-line arguments to be able to affect the
     configuration this object describes, add them in
-    `add_arguments()`, and set `runtime_keys` to a mapping from
-    argparse name to config key name.
+    :meth:`add_arguments()`, and set :attr:`runtime_keys` to a mapping
+    from argparse name to config key name.
 
     """
 
@@ -92,16 +92,22 @@ class Configurable(object):
     def sub_modules(self):
         """Modules this module controls.
 
-        This is any iterable containing a sequence of `Configurable`
-        objects (or objects that act like them).  Those configurations
-        will be stored under this object's configuration, with the
-        names specified by their `config_name` properties.
+        This is any iterable containing a sequence of
+        :class:`Configurable` objects (or objects that act like them).
+        Those configurations will be stored under this object's
+        configuration, with the names specified by their
+        :attr:`config_name` properties.
 
         """
         return []
 
     def add_arguments(self, parser):
-        """Add additional command-line arguments to the argparse 'parser'."""
+        """Add additional command-line arguments to `parser`.
+
+        :param parser: command-line argument parser
+        :type parser: :class:`argparse.ArgumentParser`
+
+        """
         pass
 
     @property
@@ -109,25 +115,26 @@ class Configurable(object):
         """Mapping of argparse keys to configuration keys.
 
         This is used to capture the command-line arguments in
-        `add_arguments()`.  It is a dictionary mapping argparse
+        :meth:`add_arguments`.  It is a dictionary mapping argparse
         argument name to configuration key name.
 
         """
         return {}
 
     def replace_config(self, config, name=''):
-        '''Look at `config` and return a new `Configurable`.
+        '''Look at `config` and return a new :class:`Configurable`.
 
         This can, for instance, load external modules pointed to by
-        a configuration file, and return a new `ProxyConfigurable`
-        for this with a new `sub_modules` list.  The yakonfig
+        a configuration file, and return a new :class:`ProxyConfigurable`
+        for this with a new :attr:`sub_modules` list.  The yakonfig
         framework will not recursively call this function on submodules.
 
         :param dict config: configuration of this object and its children
         :param str name: name of the configuration block
-        :return: a `Configurable` that replaces `self`
-        :raise yakonfig.ConfigurationError: if the new configuration
-          cannot be generated
+        :return: replacement for `self`
+        :rtype: :class:`Configurable`
+        :raises yakonfig.exceptions.ConfigurationError: if the new
+          configuration cannot be generated
         '''
         return self
 
@@ -135,11 +142,13 @@ class Configurable(object):
         """Validate the configuration of this object.
 
         If something is missing, incorrect, or inconsistent, raise a
-        `yakonfig.ConfigurationError`.
+        :exc:`yakonfig.exceptions.ConfigurationError`.
 
-        :param config: configuration of this object and its children
-        :param name: name of the configuration block, ending in
-          `config_name`
+        :param dict config: configuration of this object and its children
+        :param str name: name of the configuration block, ending in
+          :attr:`config_name`
+        :raises yakonfig.exceptions.ConfigurationError: if the
+          configuration is invalid in some way
 
         """
         pass
@@ -149,19 +158,22 @@ class Configurable(object):
 class ProxyConfigurable(Configurable):
     '''A yakonfig configurable object that passes calls on to something else.
 
-    The 'config' object can be any any configurable thing, not necessarily
-    a 'Configurable' instance.  Any methods that are not implemented
-    in the 'config' object return default values.
+    The object this proxies can be any any configurable thing, not
+    necessarily a :class:`Configurable` instance.  Any methods that
+    are not implemented in the underlying object return default
+    values.
 
     This class is intended to be used as a base class for
-    `replace_config()` implementations.
+    :meth:`Configurable.replace_config` implementations.
 
+    .. automethod:: __init__
     '''
 
     def __init__(self, config=None, *args, **kwargs):
         '''Create a new proxy configurable.
 
-        :param Configurable config: object to pass options on to
+        :param config: object to pass options on to
+        :type config: :class:`Configurable`
 
         '''
         super(ProxyConfigurable, self).__init__(*args, **kwargs)
@@ -198,16 +210,20 @@ class ProxyConfigurable(Configurable):
         return super(ProxyConfigurable, self).check_config(config, name)
 
 class NewSubModules(ProxyConfigurable):
-    '''A proxy `Configurable` that only replaces the `sub_modules` list.
+    '''A proxy that only replaces the :attr:`sub_modules` list.
 
-    This is expected to be the common use case for `replace_config()`.
+    This is expected to be the common use case for
+    :meth:`replace_config()`.
 
+    .. automethod: __init__
     '''
     def __init__(self, config=None, sub_modules=[], *args, **kwargs):
-        '''Create a new proxy `Configurable` with new `sub_modules`.
+        '''Create a new proxy with new :attr:`sub_modules`.
 
         :param config: original `Configurable` object
+        :type config: :class:`Configurable`
         :param sub_modules: new `sub_modules` list
+        :type sub_modules: list of :class:`Configurable`
 
         '''
         super(NewSubModules, self).__init__(config=config, *args, **kwargs)
@@ -219,7 +235,7 @@ class NewSubModules(ProxyConfigurable):
 def check_subconfig(config, name, sub):
     """Validate the configuration of an object within this.
 
-    This calls `Configurable.check_config()` or equivalent on `sub`.
+    This calls :meth:`Configurable.check_config` or equivalent on `sub`.
     A dictionary configuration for `sub` is required in `config`.
 
     >>> def check_config(config, name):
@@ -229,8 +245,8 @@ def check_subconfig(config, name, sub):
     :param dict config: parent configuration
     :param str name: name of the parent configuration block
     :param sub: Configurable-like subobject to check
-    :raise yakonfig.ConfigurationError: if there is no configuration
-      for `sub`, or it is not a dictionary
+    :raise yakonfig.exceptions.ConfigurationError: if there is no
+      configuration for `sub`, or it is not a dictionary
 
     """
     subname = sub.config_name
