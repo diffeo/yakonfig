@@ -12,7 +12,7 @@ Most programs' `main()` functions will call yakonfig as:
 >>> yakonfig.parse_args(parser, [yakonfig, module, module...])
 
 where the list of modules are top-level modules or other
-:class:`yakonfig.configurable.Configurable` objects the program uses.
+:class:`yakonfig.Configurable` objects the program uses.
 
 Test code and other things not driven by argparse can instead call
 
@@ -39,9 +39,9 @@ config_name = 'yakonfig'
 def add_arguments(parser):
     '''Add command-line arguments for yakonfig proper.
 
-    This is part of the :class:`~yakonfig.configurable.Configurable`
-    interface, and is usually run by including :mod:`yakonfig` in
-    the :func:`parse_args()` module list.
+    This is part of the :class:`~yakonfig.Configurable` interface, and
+    is usually run by including :mod:`yakonfig` in the
+    :func:`parse_args()` module list.
 
     :param argparse.ArgumentParser parser: command-line argument
       parser
@@ -58,10 +58,10 @@ def parse_args(parser, modules, args=None):
     """Set up global configuration for command-line tools.
 
     `modules` is an iterable of
-    :class:`yakonfig.configurable.Configurable` objects, or anything
+    :class:`yakonfig.Configurable` objects, or anything
     equivalently typed.  This function iterates through those objects
     and calls
-    :meth:`~yakonfig.configurable.Configurable.add_arguments` on
+    :meth:`~yakonfig.Configurable.add_arguments` on
     each to build up a complete list of command-line arguments, then
     calls :meth:`argparse.ArgumentParser.parse_args` to actually
     process the command line.  This produces a configuration that is a
@@ -72,12 +72,12 @@ def parse_args(parser, modules, args=None):
     This returns the :class:`argparse.Namespace` object, in case the
     application has defined its own command-line parameters and
     needs to process them.  The new global configuration can be
-    obtained via :func:`yakonfig.yakonfig.get_global_config`.
+    obtained via :func:`yakonfig.get_global_config`.
 
     :param argparse.ArgumentParser parser: application-provided
       argument parser
     :param modules: modules or Configurable instances to use
-    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :type modules: iterable of :class:`~yakonfig.Configurable`
     :param args: command-line options, or `None` to use `sys.argv`
     :return: the new global configuration
 
@@ -105,7 +105,7 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     """Set up global configuration for tests and noninteractive tools.
 
     `modules` is an iterable of
-    :class:`yakonfig.configurable.Configurable` objects, or anything
+    :class:`yakonfig.Configurable` objects, or anything
     equivalently typed.  This function iterates through those objects
     to produce a default configuration, reads `yaml` as though it were
     the configuration file, and fills in any values from `params` as
@@ -113,7 +113,7 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     configuration is set as the global configuration.
 
     :param modules: modules or Configurable instances to use
-    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :type modules: iterable of :class:`~yakonfig.Configurable`
     :param dict params: dictionary of command-line argument key to values
     :param str yaml: global configuration file
     :param str filename: location of global configuration file
@@ -191,7 +191,7 @@ def defaulted_config(modules, params={}, yaml=None, filename=None,
     (if any).
 
     :param modules: modules or Configurable instances to use
-    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :type modules: iterable of :class:`~yakonfig.Configurable`
     :param dict params: dictionary of command-line argument key to values
     :param str yaml: global configuration file
     :param str filename: location of global configuration file
@@ -209,18 +209,16 @@ def check_toplevel_config(what, who):
     """Verify that some dependent configuration is present and correct.
 
     This will generally be called from a
-    :meth:`~yakonfig.configurable.Configurable.check_config`
-    implementation.  `what` is a
-    :class:`~yakonfig.configurable.Configurable`-like object.  If the
+    :meth:`~yakonfig.Configurable.check_config` implementation.
+    `what` is a :class:`~yakonfig.Configurable`-like object.  If the
     corresponding configuration isn't present in the global
-    configuration, raise a
-    :exc:`yakonfig.exceptions.ConfigurationError` explaining that
-    `who` required it.  Otherwise call that module's
-    :meth:`~yakonfig.configurable.Configurable.check_config` (if any).
+    configuration, raise a :exc:`yakonfig.ConfigurationError`
+    explaining that `who` required it.  Otherwise call that module's
+    :meth:`~yakonfig.Configurable.check_config` (if any).
 
-    :param yakonfig.configurable.Configurable what: top-level module to require
+    :param yakonfig.Configurable what: top-level module to require
     :param str who: name of the requiring module
-    :raise yakonfig.exceptions.ConfigurationError: if configuration for
+    :raise yakonfig.ConfigurationError: if configuration for
       `what` is missing or incorrect
 
     """

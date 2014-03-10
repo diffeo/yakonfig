@@ -5,13 +5,13 @@
 
 Loads a YAML file (with extensions) and makes it available globally to
 a Python application.  Application code can call
-:func:`yakonfig.yakonfig.get_global_config` to get values from the
+:func:`yakonfig.get_global_config` to get values from the
 configuration store.
 
 In typical use, a program will declare some number of top-level
 configuration modules.  These modules mimic the structure of
-:class:`yakonfig.configurable.Configurable`, and are passed in directly
-to :func:`yakonfig.toplevel.parse_args()`.  This makes the corresponding
+:class:`yakonfig.Configurable`, and are passed in directly to
+:func:`yakonfig.parse_args()`.  This makes the corresponding
 configuration available in the global configuration.  For example::
 
     # I am a_module.py
@@ -49,7 +49,7 @@ Loads a yaml file at path and inserts it as the value associated with key.
 From some runtime set of options (via argparse or a dict of options)
 insert that value under key. If 'rkey' is specified then do dict or
 property access by that name and use that value instead of the
-whole.  See :func:`yakonfig.yakonfig.set_runtime_args_object` for how
+whole.  See :func:`yakonfig.set_runtime_args_object` for how
 argparse results get injected.
 
 ``key: !include_func package.path.to.func`` *(deprecated)*
@@ -64,9 +64,70 @@ yaml file.
 ``key: !include_runtime rkey`` *(deprecated)*
 
 Like ``!runtime`` pulls a value from input to
-:func:`yakonfig.yakonfig.set_runtime_args_dict`, but uses that value
+:func:`yakonfig.set_runtime_args_dict`, but uses that value
 as a path as in ``!include_yaml``, reading that file and parsing it
 and inserting it at this point in the enclosing yaml file.
+
+Top-level entry points
+======================
+
+.. autofunction:: parse_args
+.. autofunction:: set_default_config
+.. autofunction:: defaulted_config
+.. autofunction:: get_global_config
+
+Configurable modules
+====================
+
+Modules that can be configured by the user implement the
+:class:`yakonfig.Configurable` interface, or more often, have their
+classes and modules provide the same names.  Anything that includes a
+:attr:`~yakonfig.Configurable.config_name` property can be passed into
+the top-level entry points above.
+
+.. autoclass:: Configurable
+   :members:
+
+.. autoclass:: ProxyConfigurable
+   :members:
+
+.. autoclass:: NewSubModules
+   :members:
+
+.. autofunction:: check_toplevel_config
+.. autofunction:: check_subconfig
+
+Operations on configuration
+===========================
+
+Configuration is always passed around as plain Python dictionaries.
+If you can guarantee that a configuration has passed through yakonfig,
+then you can generally guarantee that its default values are present
+and that any defined checks have passed.
+
+.. autofunction:: overlay_config
+.. autofunction:: diff_config
+
+Exceptions
+==========
+
+.. autoclass:: ConfigurationError
+.. autoclass:: ProgrammerError
+
+Legacy interface
+================
+
+Older code worked by creating a "default" YAML file populated with
+``!runtime`` YAML directives.  :func:`set_runtime_args_object` would
+then populate this with a :class:`argparse.Namespace` object, where
+:mod:`argparse` would provide either fixed default values or
+command-line arguments.  This interface is deprecated and will be
+removed.
+
+.. autofunction:: set_runtime_args_object
+.. autofunction:: set_runtime_args_dict
+.. autofunction:: set_global_config
+.. autofunction:: clear_global_config
 
 '''
 from __future__ import absolute_import

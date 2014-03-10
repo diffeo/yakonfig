@@ -8,9 +8,9 @@ Purpose
 
 Provides a common place to declare command-line arguments and default
 configuration to yakonfig.  Configurable object classes can be passed
-into :func:`yakonfig.toplevel.parse_args`.  This will cause
-yakonfig to instantiate the relevant command-line arguments, parse any
-inbound YAML configuration, fill in defaults, and produce a complete
+into :func:`yakonfig.parse_args`.  This will cause yakonfig to
+instantiate the relevant command-line arguments, parse any inbound
+YAML configuration, fill in defaults, and produce a complete
 configuration.
 
 Only :attr:`Configurable.config_name` is strictly required, the
@@ -23,12 +23,13 @@ useful.
 Implementation Details
 ======================
 
-:func:`yakonfig.toplevel.parse_args` doesn't actually require
+:func:`yakonfig.parse_args` doesn't actually require
 :class:`Configurable` subclasses as its parameter; any object (e.g.,
 module objects) that include the required names can be used.
 
 Module Contents
 ===============
+
 """
 
 from __future__ import absolute_import
@@ -59,10 +60,10 @@ class Configurable(object):
         key: value
 
     If you subclass this, you will need to pass instances of this
-    object to the :module:`yakonfig.toplevel` methods, not the class
-    itself.  A corollary to this is that it is possible for the
-    command-line arguments to vary based on parameters to this
-    object's constructor.
+    object to the top-level yakonfig methods, not the class itself.  A
+    corollary to this is that it is possible for the command-line
+    arguments to vary based on parameters to this object's
+    constructor.
 
     If you want command-line arguments to be able to affect the
     configuration this object describes, add them in
@@ -133,7 +134,7 @@ class Configurable(object):
         :param str name: name of the configuration block
         :return: replacement for `self`
         :rtype: :class:`Configurable`
-        :raises yakonfig.exceptions.ConfigurationError: if the new
+        :raises yakonfig.ConfigurationError: if the new
           configuration cannot be generated
         '''
         return self
@@ -142,12 +143,12 @@ class Configurable(object):
         """Validate the configuration of this object.
 
         If something is missing, incorrect, or inconsistent, raise a
-        :exc:`yakonfig.exceptions.ConfigurationError`.
+        :exc:`yakonfig.ConfigurationError`.
 
         :param dict config: configuration of this object and its children
         :param str name: name of the configuration block, ending in
           :attr:`config_name`
-        :raises yakonfig.exceptions.ConfigurationError: if the
+        :raises yakonfig.ConfigurationError: if the
           configuration is invalid in some way
 
         """
@@ -262,7 +263,7 @@ def check_subconfig(config, name, sub):
     :param dict config: parent configuration
     :param str name: name of the parent configuration block
     :param sub: Configurable-like subobject to check
-    :raise yakonfig.exceptions.ConfigurationError: if there is no
+    :raise yakonfig.ConfigurationError: if there is no
       configuration for `sub`, or it is not a dictionary
 
     """
