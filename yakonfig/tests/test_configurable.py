@@ -88,6 +88,14 @@ class Dependent:
     def check_config(config, name):
         yakonfig.check_toplevel_config(ConfigurableArgs(), name)
 
+class Normalized:
+    config_name = 'normalized'
+    default_config = { 'k': 'value' }
+    runtime_keys = { 'k': 'k' }
+    @staticmethod
+    def normalize_config(config):
+        config['k'] = config['k'][0]
+
 @pytest.fixture(params=['object', 'class', 'module'])
 def configurable_type(request):
     return request.param
@@ -445,3 +453,15 @@ def test_replaces_proxy():
         assert 'bottom' in c
         c = c['bottom']
         assert c['zzz'] == '-32768'
+
+def test_normalize():
+    with yakonfig.defaulted_config([Normalized]):
+        assert yakonfig.get_global_config('normalized')['k'] == 'v'
+    with yakonfig.defaulted_config([Normalized], { 'k': 'foo' }):
+        assert yakonfig.get_global_config('normalized')['k'] == 'f'
+    with yakonfig.defaulted_config([Normalized],
+                                   yaml='''
+normalized:
+  k: zoom!
+'''):
+        assert yakonfig.get_global_config('normalized')['k'] == 'z'

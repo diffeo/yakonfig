@@ -153,6 +153,18 @@ class Configurable(object):
         """
         pass
 
+    def normalize_config(self, config):
+        """Rewrite the configuration of this object.
+
+        This has the opportunity to, for example, replace paths with
+        absolute paths, and to push configuration into sub-module
+        configuration.  This may alter `config` in place.
+
+        :param dict config: configuration of this object and its children
+
+        """
+        pass
+
     pass
 
 class ProxyConfigurable(Configurable):
@@ -208,6 +220,11 @@ class ProxyConfigurable(Configurable):
         if hasattr(self.config, 'check_config'):
             return getattr(self.config, 'check_config')(config, name)
         return super(ProxyConfigurable, self).check_config(config, name)
+
+    def normalize_config(self, config):
+        if hasattr(self.config, 'normalize_config'):
+            return getattr(self.config, 'normalize_config')(config)
+        return super(ProxyConfigurable, self).normalize_config(config)
 
 class NewSubModules(ProxyConfigurable):
     '''A proxy that only replaces the :attr:`sub_modules` list.

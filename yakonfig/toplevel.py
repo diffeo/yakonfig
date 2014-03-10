@@ -31,7 +31,7 @@ from cStringIO import StringIO
 import yaml
 
 import yakonfig
-from yakonfig.merge import overlay_config
+from yakonfig.merge import overlay_config, diff_config
 from yakonfig.yakonfig import _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
@@ -49,6 +49,9 @@ def add_arguments(parser):
     '''
     parser.add_argument('--config', '-c', metavar='FILE',
                         help='read configuration from FILE')
+    parser.add_argument('--dump-config', metavar='WHAT', nargs='?',
+                        help='dump out configuration then stop '
+                        '(default, effective, full)')
 runtime_keys = { 'config': 'config' }
 
 def parse_args(parser, modules, args=None):
@@ -83,6 +86,16 @@ def parse_args(parser, modules, args=None):
     namespace = parser.parse_args(args)
     try:
         yakonfig.set_default_config(modules, params=vars(namespace))
+        if getattr(namespace, 'dump_config', None):
+            if namespace.dump_config == 'full':
+                to_dump = yakonfig.get_global_config()
+            elif namespace.dump_config == 'default':
+                to_dump = assemble_default_config(modules)
+            else: # 'effective'
+                to_dump = diff_config(assemble_default_config(modules),
+                                      yakonfig.get_global_config())
+            yaml.dump(to_dump, sys.stdout)
+            parser.exit()
     except yakonfig.ConfigurationError, e:
         parser.error(e)
     return namespace
@@ -154,7 +167,8 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
                 yakonfig.set_global_config(base_config)
                 checker(base_config[mod.config_name], mod.config_name)
 
-    # All done, set the global configuration
+    # All done, normalize and set the global configuration
+    normalize_config(base_config, modules)
     yakonfig.set_global_config(base_config)
     return base_config
 
@@ -343,4 +357,24 @@ def fill_in_arguments(config, modules, args):
                 config[cname] = v
     if not isinstance(args, collections.Mapping):
         args = vars(args)
+    return _walk_config(config, modules, work_in)
+
+def normalize_config(config, modules):
+    """Normalize configuration values in the entire tree.
+
+    `config` is a dictionary holding the almost-final configuration.
+    Each module's
+    :method:`yakonfig.configurable.Configurable.normalize_config`
+    function is called to make changes such as pushing configuration
+    into sub-module configuration blocks and making file paths
+    absolute.
+
+    :param dict config: configuration tree to update
+    :param modules: modules or Configurable instances to use
+    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+
+    """
+    def work_in(config, module, name):
+        f = getattr(module, 'normalize_config', None)
+        if f: f(config)
     return _walk_config(config, modules, work_in)
