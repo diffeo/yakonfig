@@ -27,6 +27,7 @@ from __future__ import absolute_import
 import collections
 import contextlib
 from cStringIO import StringIO
+import sys
 
 import yaml
 
