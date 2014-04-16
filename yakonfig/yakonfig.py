@@ -160,6 +160,7 @@ class Loader(yaml.Loader):
 Loader.add_constructor('!include_runtime', Loader.include_runtime)
 Loader.add_constructor('!include_func', Loader.include_func)
 Loader.add_constructor('!include_yaml', Loader.include_yaml)
+Loader.add_constructor('!include', Loader.include_yaml)
 Loader.add_constructor('!runtime', Loader.runtime)
 
 

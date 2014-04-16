@@ -129,7 +129,7 @@ k2:
         yakonfig_internals.Loader.open = real_open
     request.addfinalizer(fin)
 
-def test_include_abstract(reset_globals, monkeypatch_open):
+def test_include_yaml_abstract(reset_globals, monkeypatch_open):
     set_runtime_args_dict(dict(two='FISH'))    
     YAML_TEXT_TWO = StringIO('''
 app_one:
@@ -147,6 +147,23 @@ app_two:
     assert sub_config is config['app_two']
     assert sub_config['good'] == dict(k1='v1', k2=['v21', 'FISH'])
 
+def test_include_abstract(reset_globals, monkeypatch_open):
+    set_runtime_args_dict(dict(two='FISH'))    
+    YAML_TEXT_TWO = StringIO('''
+app_one:
+  one: car
+
+app_two:
+  bad: [cat, horse]
+  good: !include /some-path-that-will-not-be-used
+''')
+    config = set_global_config(YAML_TEXT_TWO)
+    
+    assert get_global_config() is config
+    sub_config = get_global_config('app_two')
+
+    assert sub_config is config['app_two']
+    assert sub_config['good'] == dict(k1='v1', k2=['v21', 'FISH'])
 
 def test_include_real_paths(reset_globals):
     set_runtime_args_dict(dict(two='FISH'))
