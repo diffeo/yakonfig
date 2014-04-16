@@ -114,8 +114,13 @@ Exceptions
 .. autoclass:: ConfigurationError
 .. autoclass:: ProgrammerError
 
-Legacy interface
-================
+Interactive programs
+====================
+
+.. autoclass:: yakonfig.cmd.ArgParseCmd
+
+Legacy configuration interface
+==============================
 
 Older code worked by creating a "default" YAML file populated with
 ``!runtime`` YAML directives.  :func:`set_runtime_args_object` would
