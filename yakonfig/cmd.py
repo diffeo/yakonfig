@@ -29,7 +29,7 @@ class ArgParseCmd(Cmd):
 
     For instance, a typical program could look like:
 
-    .. code-block::
+    .. code-block:: python
 
         class AProgram(ArgParseCmd):
             def __init__(self):
@@ -42,9 +42,9 @@ class ArgParseCmd(Cmd):
             def do_command(self, args):
                 """do work with the frabulator"""
                 if args.frobnicate:
-                    self.stdout.write('frobnicating\n')
+                    self.stdout.write('frobnicating\\n')
                 else:
-                    self.stdout.write('not frobnicating\n')
+                    self.stdout.write('not frobnicating\\n')
 
     Running ``help command`` or ``command --help`` will print the
     argparse-generated help, using the main function's docstring as
@@ -56,7 +56,7 @@ class ArgParseCmd(Cmd):
     ``args_...()`` function is good practice.
 
     .. note:: In Python 2.7, :class:`cmd.Cmd` is an old-style class,
-              and so :keyword:`super` and other new-style class features
+              and so :func:`super` and other new-style class features
               will not work with this class.
 
     In addition to ``help``, this provides a standard ``quit`` command,
@@ -68,7 +68,7 @@ class ArgParseCmd(Cmd):
     :class:`argparse.ArgumentParser`, and :meth:`main` either runs the
     main loop or the requested command.
 
-    .. code-block::
+    .. code-block:: python
 
         parser = argparse.ArgumentParser()
         app = AProgram()

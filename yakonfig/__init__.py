@@ -117,7 +117,9 @@ Exceptions
 Interactive programs
 ====================
 
-.. autoclass:: yakonfig.cmd.ArgParseCmd
+.. currentmodule:: yakonfig.cmd
+.. autoclass:: ArgParseCmd
+.. currentmodule:: yakonfig
 
 Legacy configuration interface
 ==============================
