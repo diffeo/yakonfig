@@ -127,7 +127,7 @@ class ArgParseCmd(Cmd):
             argl = parser.parse_args(args)
         else:
             argl = ' '.join(args)
-        return func(argl)
+        return dof(argl)
 
     def parseline(self, line):
         cmd, arg, line = Cmd.parseline(self, line)
