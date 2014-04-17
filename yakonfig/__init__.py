@@ -22,6 +22,7 @@ configuration available in the global configuration.  For example::
     default_config = { 'message': 'hello world' }
     def add_arguments(parser):
         parser.add_argument('--message')
+    runtime_keys = { 'message': 'message' }
 
     def main():
         parser = argparse.ArgumentParser()
@@ -34,39 +35,70 @@ Running ``python -m a_module`` will print out "hello world"; running
 ``python -m a_module --message goodbye`` will inject the "goodbye"
 message into the configuration, and then print it out.
 
+.. note:: Avoid using :meth:`argparse.ArgumentParser.set_defaults` in
+          combination with :func:`yakonfig.parse_args`.  Any default
+          values set this way will override values set in the user's
+          configuration file.
+
 Most of the useful functions and objects in the submodules are
 re-exported from the top-level module.
+
+Common command-line arguments
+=============================
+
+All programs based on :mod:`yakonfig` support the following
+command-line arguments.
+
+.. program:: yakonfig
+
+.. option:: --config <file.yaml>, -c <file.yaml>
+
+Load ``file.yaml`` as the primary configuration file.  Options set in
+the configuration file override any default values; options set on the
+command line override values in this configuration file.
+
+.. option:: --dump-config {default|effective|full}
+
+Write the configuration as YAML to standard output, then stop
+immediately.  The argument indicates which configuration is dumped: if
+``default`` then the default configuration, ignoring all user setup,
+is dumped; if ``full`` then the dump contains the complete
+configuration, including all default settings, settings from the
+configuration file, and command-line options; and if ``effective``
+then the dump contains only those settings that differ from the
+defaults, producing the minimum configuration to recreate the current
+settings.
 
 YAML extensions
 ===============
 
-``key: !include_yaml path``
+``key: !include path``
+  Loads a yaml file at `path` and inserts it as the value associated
+  with `key`.
 
-Loads a yaml file at path and inserts it as the value associated with key.
+``key: !include_yaml path`` *(deprecated)*
+  Alias for ``!include``.
 
 ``key: !runtime [rkey]`` *(deprecated)*
-
-From some runtime set of options (via argparse or a dict of options)
-insert that value under key. If 'rkey' is specified then do dict or
-property access by that name and use that value instead of the
-whole.  See :func:`yakonfig.set_runtime_args_object` for how
-argparse results get injected.
+  From some runtime set of options (via argparse or a dict of options)
+  insert that value under key. If `rkey` is specified then do dict or
+  property access by that name and use that value instead of the
+  whole.  See :func:`yakonfig.set_runtime_args_object` for how
+  argparse results get injected.
 
 ``key: !include_func package.path.to.func`` *(deprecated)*
-
-Calls a python function. from a fully specified name of
-``package.func`` If the function name ends in "yaml" the return value
-is interpreted as a yaml document body in a string and
-parsed. Otherwise the return value is assumed to be a dict or other
-object that can be simply assigned to they key at this point in the
-yaml file.
+  Calls a python function. from a fully specified name of
+  ``package.func`` If the function name ends in "yaml" the return
+  value is interpreted as a yaml document body in a string and
+  parsed. Otherwise the return value is assumed to be a dict or other
+  object that can be simply assigned to they key at this point in the
+  yaml file.
 
 ``key: !include_runtime rkey`` *(deprecated)*
-
-Like ``!runtime`` pulls a value from input to
-:func:`yakonfig.set_runtime_args_dict`, but uses that value
-as a path as in ``!include_yaml``, reading that file and parsing it
-and inserting it at this point in the enclosing yaml file.
+  Like ``!runtime`` pulls a value from input to
+  :func:`yakonfig.set_runtime_args_dict`, but uses that value as a
+  path as in ``!include_yaml``, reading that file and parsing it and
+  inserting it at this point in the enclosing yaml file.
 
 Top-level entry points
 ======================
