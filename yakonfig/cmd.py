@@ -131,8 +131,11 @@ class ArgParseCmd(Cmd):
 
     def parseline(self, line):
         cmd, arg, line = Cmd.parseline(self, line)
-        dof = getattr(self, 'do_' + cmd, None)
-        argf = getattr(self, 'args_' + cmd, None)
+        if cmd and cmd.strip() != '':
+            dof = getattr(self, 'do_' + cmd, None)
+            argf = getattr(self, 'args_' + cmd, None)
+        else:
+            argf = None
         if argf:
             parser = argparse.ArgumentParser(
                 prog=cmd,
