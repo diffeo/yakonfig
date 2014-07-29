@@ -147,6 +147,9 @@ class ArgParseCmd(Cmd):
                 return '', '', ''
         return cmd, arg, line
 
+    def emptyline(self):
+        pass
+
     def args_help(self, parser):
         parser.add_argument('command', nargs='?',
                             help='print help on this command')
