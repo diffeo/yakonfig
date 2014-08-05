@@ -82,19 +82,30 @@ class ConfigurableLikeTop(object):
     def replace_config(config, name):
         return yakonfig.NewSubModules(ConfigurableLikeTop, [ConfigurableBottom])
 
-class Dependent:
+class Dependent(object):
     config_name = 'dependent'
     @staticmethod
     def check_config(config, name):
         yakonfig.check_toplevel_config(ConfigurableArgs(), name)
 
-class Normalized:
+class Normalized(object):
     config_name = 'normalized'
     default_config = { 'k': 'value' }
     runtime_keys = { 'k': 'k' }
     @staticmethod
     def normalize_config(config):
         config['k'] = config['k'][0]
+
+class Discovers(object):
+    config_name = 'discovers'
+    default_config = { 'a': 'one', 'c': 'three' }
+    runtime_keys = { 'a': 'a', 'b': 'b', 'c': 'c' }
+    @staticmethod
+    def discover_config(config, name):
+        if 'a' not in config:
+            config['a'] = 'foo'
+        if 'b' not in config:
+            config['b'] = 'bar'
 
 @pytest.fixture(params=['object', 'class', 'module'])
 def configurable_type(request):
@@ -465,3 +476,17 @@ normalized:
   k: zoom!
 '''):
         assert yakonfig.get_global_config('normalized')['k'] == 'z'
+
+def test_discovery():
+    with yakonfig.defaulted_config([Discovers]):
+        # discovered overwrites default
+        assert yakonfig.get_global_config('discovers', 'a') == 'foo'
+        # discovered provides missing value
+        assert yakonfig.get_global_config('discovers', 'b') == 'bar'
+        # undiscovered uses default value
+        assert yakonfig.get_global_config('discovers', 'c') == 'three'
+    with yakonfig.defaulted_config([Discovers], { 'a': 'alpha' }):
+        # command-line value overrules discovery
+        assert yakonfig.get_global_config('discovers', 'a') == 'alpha'
+        assert yakonfig.get_global_config('discovers', 'b') == 'bar'
+        assert yakonfig.get_global_config('discovers', 'c') == 'three'

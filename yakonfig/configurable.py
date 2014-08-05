@@ -139,6 +139,35 @@ class Configurable(object):
         '''
         return self
 
+    def discover_config(self, config, name=''):
+        '''Fill in missing values in `config` from the environment.
+
+        This can literally look in :attr:`os.environ` to pick up values
+        such as ``$TMPDIR``, or values published from a container system
+        such as `Docker <http://www.docker.com/>`_.  It could also
+        look at an external system, such as `Apache ZooKeeper
+        <http://zookeeper.apache.org/>`_ or `CoreOS etcd
+        <https://coreos.com/docs/distributed-configuration/etcd-api/>`_
+        to find information such as what systems exist in the cluster.
+
+        This method should limit itself to filling in missing values.
+        It should modify `config` in place.  The framework will call
+        this method once, walking the configurable tree for you.
+        `config` will not have default values applied to it at this
+        point.  If :meth:`replace_config` is also implemented, this
+        method will be called only on the new object returned by
+        :meth:`replace_config`.  Implementations of this method should
+        be careful to trap exceptions; failure to reach an external
+        configuration management system should not break initial
+        configuration.
+
+        :param dict config: configuration of this object and its
+          children (read/write, does not include defaults)
+        :param str name: name of the configuration block
+
+        '''
+        pass
+
     def check_config(self, config, name=''):
         """Validate the configuration of this object.
 
@@ -216,6 +245,11 @@ class ProxyConfigurable(Configurable):
         if hasattr(self.config, 'replace_config'):
             return getattr(self.config, 'replace_config')(config, name)
         return super(ProxyConfigurable, self).replace_config(config, name)
+
+    def discover_config(self, config, name=''):
+        if hasattr(self.config, 'discover_config'):
+            return getattr(self.config, 'discover_config')(config, name)
+        return super(ProxyConfigurable, self).discover_config(config, name)
 
     def check_config(self, config, name=''):
         if hasattr(self.config, 'check_config'):

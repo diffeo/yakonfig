@@ -26,6 +26,7 @@ Module Contents
 from __future__ import absolute_import
 import collections
 import contextlib
+import copy
 from cStringIO import StringIO
 import sys
 
@@ -140,10 +141,13 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
         elif config is not None:
             file_config = config
 
+    # First pass: set up to call replace_config()
     # Assemble the configuration from defaults + file + arguments
-    default_config = assemble_default_config(modules)
-    base_config = overlay_config(default_config, file_config)
+    base_config = copy.deepcopy(file_config)
+    create_config_tree(base_config, modules)
     fill_in_arguments(base_config, modules, params)
+    default_config = assemble_default_config(modules)
+    base_config = overlay_config(default_config, base_config)
     
     # Replace the modules list (accommodate external modules)
     def replace_module(config, m):
@@ -154,7 +158,12 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
         return m
     modules = [replace_module(base_config, m) for m in modules]
 
-    # Reassemble the configuration again
+    # Reassemble the configuration again, this time reaching out to
+    # the environment
+    base_config = file_config
+    create_config_tree(base_config, modules)
+    fill_in_arguments(base_config, modules, params)
+    do_config_discovery(base_config, modules)
     default_config = assemble_default_config(modules)
     base_config = overlay_config(default_config, file_config)
     fill_in_arguments(base_config, modules, params)
@@ -233,7 +242,74 @@ def check_toplevel_config(what, who):
     if checker:
         checker(config[config_name], config_name)
 
-def _walk_config(config, modules, f, prefix='', required=True):
+def _recurse_config(parent_config, modules, f, prefix=''):
+    '''Walk through the module tree.
+
+    This is a helper function for :func:`create_config_tree` and
+    :func:`_walk_config`.  It calls `f` once for each module in the
+    configuration tree with parameters `parent_config`, `config_name`,
+    `prefix`, and `module`.  `parent_config[config_name]` may or may
+    not exist (but could be populated, as :func:`create_config_tree`).
+    If even the parent configuration doesn't exist, `parent_config`
+    could be :const:`None`.
+
+    :param dict parent_config: configuration dictionary holding
+      configuration for `modules`, or maybe :const:`None`
+    :param modules: modules or Configurable instances to use
+    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :param f: callable to call on each module
+    :param str prefix: prefix name of `parent_config`
+    :return: `parent_config`
+
+    '''
+    for module in modules:
+        config_name = getattr(module, 'config_name', None)
+        if config_name is None:
+            raise yakonfig.ProgrammerError('{!r} must provide a config_name'
+                                           .format(module))
+        new_name = prefix + config_name
+
+        f(parent_config, config_name, new_name, module)
+
+        _recurse_config((parent_config or {}).get(config_name, None),
+                        getattr(module, 'sub_modules', []),
+                        f,
+                        new_name + '.')
+    return parent_config
+
+def create_config_tree(config, modules, prefix=''):
+    '''Cause every possible configuration sub-dictionary to exist.
+
+    This is intended to be called very early in the configuration
+    sequence.  For each module, it checks that the corresponding
+    configuration item exists in `config` and creates it as an empty
+    dictionary if required, and then recurses into child
+    configs/modules.
+
+    :param dict config: configuration to populate
+    :param modules: modules or Configurable instances to use
+    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :param str prefix: prefix name of the config
+    :return: `config`
+    :raises yakonfig.ConfigurationError: if an expected name is present
+      in the provided config, but that name is not a dictionary
+
+    '''
+    def work_in(parent_config, config_name, prefix, module):
+        if config_name not in parent_config:
+            # this is the usual, expected case
+            parent_config[config_name] = {}
+        elif not isinstance(parent_config[config_name], collections.Mapping):
+            raise yakonfig.ConfigurationError(
+                '{} must be an object configuration'.format(prefix))
+        else:
+            # config_name is a pre-existing dictionary in parent_config
+            pass
+
+    _recurse_config(config, modules, work_in)
+
+
+def _walk_config(config, modules, f, prefix=''):
     """Recursively walk through a module list.
 
     For every module, calls ``f(config, module, name)`` where
@@ -241,51 +317,28 @@ def _walk_config(config, modules, f, prefix='', required=True):
     is the Configurable-like object, and `name` is the complete
     path (ending in the module name).
 
-    If `required` is true, every name encountered must exist,
-    and `yakonfig.ProgrammerError` will be raised if it doesn't.
-    If `required` is false, every name encountered must not exist,
-    and `yakonfig.ProgrammerError` will be raised if it does.
-    `required=False` is intended to only be used when setting up
-    the default configuration.
-
     :param dict config: configuration to walk and possibly update
     :param modules: modules or Configurable instances to use
     :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
     :param f: callback function for each module
     :param str prefix: prefix name of the config
-    :param bool required: if true, config names already exist
     :return: config
 
     """
-    for module in modules:
-        name = getattr(module, 'config_name', None)
-        if name is None:
-            raise yakonfig.ProgrammerError('{!r} must provide a config_name'
-                                           .format(module))
-        new_name = '{}{}'.format(prefix, name)
-        if required:
-            if name not in config:
-                raise yakonfig.ProgrammerError('{} not present in configuration'
-                                               .format(new_name))
-            if not isinstance(config[name], collections.Mapping):
-                raise yakonfig.ConfigurationError(
-                    '{} must be an object configuration'.format(new_name))
-        else:
-            if name in config:
-                raise yakonfig.ProgrammerError('multiple modules providing {}'
-                                               .format(new_name))
-            config[name] = {}
+    def work_in(parent_config, config_name, prefix, module):
+        # create_config_tree() needs to have been called by now
+        # and you should never hit either of these asserts
+        if config_name not in parent_config:
+            raise yakonfig.ProgrammerError('{} not present in configuration'
+                                           .format(prefix))
+        if not isinstance(parent_config[config_name], collections.Mapping):
+            raise yakonfig.ConfigurationError(
+                '{} must be an object configuration'.format(prefix))
 
         # do the work!
-        f(config[name], module, new_name)
+        f(parent_config[config_name], module, prefix)
 
-        # recurse into submodules (if defined)
-        _walk_config(config=config[name],
-                     modules=getattr(module, 'sub_modules', []),
-                     f=f,
-                     prefix=new_name + '.',
-                     required=required)
-    return config
+    return _recurse_config(config, modules, work_in)
 
 def collect_add_argparse(parser, modules):
     """Add all command-line options.
@@ -301,13 +354,11 @@ def collect_add_argparse(parser, modules):
     :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
 
     """
-    def work_in(config, module, name):
+    def work_in(parent_config, config_name, prefix, module):
         f = getattr(module, 'add_arguments', None)
         if f is not None:
             f(parser)
-    # this is *really handy* so we'll use it -- but it builds up a
-    # partial config tree that we'll 100% ignore
-    _walk_config(dict(), modules, work_in, required=False)
+    _recurse_config(dict(), modules, work_in)
     return parser
 
 def assemble_default_config(modules):
@@ -324,10 +375,12 @@ def assemble_default_config(modules):
     :return: configuration dictionary
 
     """
-    def work_in(config, module, name):
-        local_config = dict(getattr(module, 'default_config', {}))
-        config.update(local_config)
-    return _walk_config(dict(), modules, work_in, required=False)
+    def work_in(parent_config, config_name, prefix, module):
+        if config_name in parent_config:
+            raise yakonfig.ProgrammerError('multiple modules providing {}'
+                                           .format(prefix))
+        parent_config[config_name] = dict(getattr(module, 'default_config', {}))
+    return _recurse_config(dict(), modules, work_in)
 
 def fill_in_arguments(config, modules, args):
     """Fill in configuration fields from command-line arguments.
@@ -356,6 +409,26 @@ def fill_in_arguments(config, modules, args):
                 config[cname] = v
     if not isinstance(args, collections.Mapping):
         args = vars(args)
+    return _walk_config(config, modules, work_in)
+
+def do_config_discovery(config, modules):
+    '''Let modules detect additional configuration values.
+
+    `config` is the initial dictionary with command-line and
+    file-derived values, but nothing else, filled in.  This calls
+    :meth:`yakonfig.configurable.Configurable.discover_config` on
+    every configuration module.  It is expect that this method will
+    modify the passed-in configuration dictionaries in place.
+
+    :param dict config: configuration tree to update
+    :param modules: modules or Configurable instances to use
+    :type modules: iterable of :class:`~yakonfig.configurable.Configurable`
+    :return: `config`
+
+    '''
+    def work_in(config, module, name):
+        f = getattr(module, 'discover_config', None)
+        if f: f(config, name)
     return _walk_config(config, modules, work_in)
 
 def normalize_config(config, modules):
