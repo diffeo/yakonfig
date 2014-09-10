@@ -10,17 +10,6 @@ This maintains a global configuration dictionary.
 :func:`get_global_config` will get the entire dictionary, or specific
 keys from it.
 
-Legacy Interface
-================
-
-Older programs directly interact with the global dictionary.  Their
-top-level programs will :func:`set_global_config` with a static YAML
-file, which generally sets values using ``!runtime`` directives.
-These values come from command-line parameters, typically with
-defaults, and the :class:`argparse.Namespace` directory is passed to
-:func:`set_runtime_args_object`.  This causes those values to be
-resolved when :func:`get_global_config` retrieves them.
-
 Module Contents
 ===============
 
@@ -37,39 +26,9 @@ import yaml
 
 logger = logging.getLogger('yakonfig')
 
-_runtime_args_object = None
-_runtime_args_dict = None
-
 _config_file_path = None
 
 _config_cache = None
-
-
-def set_runtime_args_object(args):
-    '''Set values for ``!runtime`` values from an object.
-
-    This is typically a :class:`argparse.Namespace` object.
-
-    :param object args: object to provide runtime values
-
-    '''
-    global _runtime_args_object
-    global _runtime_args_dict
-    _runtime_args_object = args
-    _runtime_args_dict = None
-
-
-def set_runtime_args_dict(args):
-    '''Set values for ``!runtime`` values from a dictionary.
-
-    :param dict args: dictionary to provide runtime values
-
-    '''
-    global _runtime_args_object
-    global _runtime_args_dict
-    if args:
-        _runtime_args_dict = args
-        _runtime_args_object = None
 
 
 class Loader(yaml.Loader):
@@ -119,24 +78,6 @@ class Loader(yaml.Loader):
         with self.open(filename, 'r') as fin:
             return yaml.load(fin, Loader)
 
-    def include_runtime(self, node):
-        '''
-        load another yaml file from the path specified by runtime arg
-        named by node's value
-        '''
-        if _runtime_args_dict is None and _runtime_args_object is None:
-            raise Exception('!runtime requires a prior call to set_runtime_args_dict or set_runtime_args_object')
-        runtimedict = _runtime_args_dict or vars(_runtime_args_object)
-        filename = runtimedict.get(node.value)
-        if filename is None:
-            raise Exception('%r not in runtime args: %r' % (node.value, runtimedict))
-        if not filename.startswith('/'):
-            if self._root is None:
-                raise Exception('!include_runtime %s is a relative path, but stream lacks path' % filename)
-            filename = os.path.join(self._root, self.construct_scalar(node))
-        with self.open(filename, 'r') as fin:
-            return yaml.load(fin, Loader)
-
     def open(self, *args, **kwargs):
         '''
         method that looks like the regular python builtin `open`, and
@@ -144,32 +85,15 @@ class Loader(yaml.Loader):
         '''
         return open(*args, **kwargs)
 
-    def runtime(self, node):
-        '''
-        provide !runtime values from having set_runtime_args_dict or
-        set_runtime_args_object
-        '''
-        if _runtime_args_dict is None and _runtime_args_object is None:
-            raise Exception('!runtime requires a prior call to set_runtime_args_dict or set_runtime_args_object')
-        runtimedict = _runtime_args_dict or vars(_runtime_args_object)
-        if (node is None) or (not node.value):
-            return runtimedict  # with no specifier, return the whole thing
-        return runtimedict.get(node.value)
-
-
-Loader.add_constructor('!include_runtime', Loader.include_runtime)
 Loader.add_constructor('!include_func', Loader.include_func)
 Loader.add_constructor('!include_yaml', Loader.include_yaml)
 Loader.add_constructor('!include', Loader.include_yaml)
-Loader.add_constructor('!runtime', Loader.runtime)
 
 
 def clear_global_config():
     '''Reset the global configuration to an empty state.'''
-    global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
+    global _config_cache, _config_file_path
     _config_cache = None
-    _runtime_args_object = None
-    _runtime_args_dict = None
     _config_file_path = None
 
 
@@ -254,14 +178,10 @@ def _temporary_config():
     b
 
     '''
-    global _config_cache, _config_file_path, _runtime_args_object, _runtime_args_dict
+    global _config_cache, _config_file_path
     old_cc = _config_cache
     old_cfp = _config_file_path
-    old_rao = _runtime_args_object
-    old_rad = _runtime_args_dict
     clear_global_config()
     yield
     _config_cache = old_cc
     _config_file_path = old_cfp
-    _runtime_args_object = old_rao
-    _runtime_args_dict = old_rad

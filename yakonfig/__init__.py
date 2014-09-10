@@ -79,13 +79,6 @@ YAML extensions
 ``key: !include_yaml path`` *(deprecated)*
   Alias for ``!include``.
 
-``key: !runtime [rkey]`` *(deprecated)*
-  From some runtime set of options (via argparse or a dict of options)
-  insert that value under key. If `rkey` is specified then do dict or
-  property access by that name and use that value instead of the
-  whole.  See :func:`yakonfig.set_runtime_args_object` for how
-  argparse results get injected.
-
 ``key: !include_func package.path.to.func`` *(deprecated)*
   Calls a python function. from a fully specified name of
   ``package.func`` If the function name ends in "yaml" the return
@@ -94,12 +87,6 @@ YAML extensions
   object that can be simply assigned to they key at this point in the
   yaml file.
 
-``key: !include_runtime rkey`` *(deprecated)*
-  Like ``!runtime`` pulls a value from input to
-  :func:`yakonfig.set_runtime_args_dict`, but uses that value as a
-  path as in ``!include_yaml``, reading that file and parsing it and
-  inserting it at this point in the enclosing yaml file.
-
 Top-level entry points
 ======================
 
@@ -107,6 +94,8 @@ Top-level entry points
 .. autofunction:: set_default_config
 .. autofunction:: defaulted_config
 .. autofunction:: get_global_config
+.. autofunction:: set_global_config
+.. autofunction:: clear_global_config
 
 Configurable modules
 ====================
@@ -153,21 +142,6 @@ Interactive programs
 .. autoclass:: ArgParseCmd
 .. currentmodule:: yakonfig
 
-Legacy configuration interface
-==============================
-
-Older code worked by creating a "default" YAML file populated with
-``!runtime`` YAML directives.  :func:`set_runtime_args_object` would
-then populate this with a :class:`argparse.Namespace` object, where
-:mod:`argparse` would provide either fixed default values or
-command-line arguments.  This interface is deprecated and will be
-removed.
-
-.. autofunction:: set_runtime_args_object
-.. autofunction:: set_runtime_args_dict
-.. autofunction:: set_global_config
-.. autofunction:: clear_global_config
-
 '''
 from __future__ import absolute_import
 from yakonfig.configurable import Configurable, ProxyConfigurable, \
@@ -177,5 +151,5 @@ from yakonfig.merge import diff_config, overlay_config
 from yakonfig.toplevel import parse_args, set_default_config, \
     defaulted_config, check_toplevel_config, \
     config_name, add_arguments, runtime_keys
-from yakonfig.yakonfig import set_runtime_args_object, set_runtime_args_dict, \
-    clear_global_config, set_global_config, get_global_config
+from yakonfig.yakonfig import clear_global_config, set_global_config, \
+    get_global_config
