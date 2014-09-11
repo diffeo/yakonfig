@@ -96,7 +96,7 @@ def create_configurable(obj):
     '''
     c = discover_config(obj)
     class AutoConfigured (Configurable):
-        config_name = c['name']
+        config_name = getattr(obj, 'config_name', c['name'])
         services = c['required']
         default_config = c['defaults']
 
