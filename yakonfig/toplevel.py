@@ -87,8 +87,9 @@ def parse_args(parser, modules, args=None):
     collect_add_argparse(parser, modules)
     namespace = parser.parse_args(args)
     try:
-        yakonfig.set_default_config(modules, params=vars(namespace))
-        if getattr(namespace, 'dump_config', None):
+        do_dump_config = getattr(namespace, 'dump_config', None)
+        yakonfig.set_default_config(modules, params=vars(namespace), validate=not do_dump_config)
+        if do_dump_config:
             if namespace.dump_config == 'full':
                 to_dump = yakonfig.get_global_config()
             elif namespace.dump_config == 'default':
