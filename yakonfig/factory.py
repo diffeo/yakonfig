@@ -42,7 +42,7 @@ class AutoFactory (Configurable):
         '''
         pass
 
-    def create(self, config, configurable):
+    def create(self, config, configurable, **kwargs):
         '''
         Instantiates the ``configurable`` object with the
         configuration ``config`` given. This essentially translates
@@ -63,40 +63,15 @@ class AutoFactory (Configurable):
         Neither ``config`` or ``configurable`` are modified.
         ``configurable`` is given a *deep* copy of the configuration.
         '''
-        # XXX: This whole approach may be bogus. @dmaze should review it.
-        # N.B. This would be much more convenient if we could eliminate the
-        # `config` parameter somehow (thereby eliminating global config!?!).
-
         # Regenerate the configuration ifneedbe.
         if not hasattr(configurable, 'config_name'):
             configurable = create_configurable(configurable)
+        configurable.check_config(config)
 
         # don't mutate given config
-        kwargs = copy.deepcopy(config.get(configurable.config_name, {}))
-        # Check to make sure there is nothing in `kwargs` that isn't in the
-        # default config. If there is, then the user has provided a
-        # configuration option that isn't supported.
-        extras = set(kwargs.keys()).difference(configurable.default_config)
-        if len(extras) > 0:
-            raise ConfigurationError(
-                'Unsupported config options for "%s": %s'
-                % (configurable.config_name, ', '.join(extras)))
+        config = dict(config.get(configurable.config_name, {}), **kwargs)
+        config = copy.deepcopy(config)
         for other in getattr(configurable, 'services', []):
-            if other in kwargs:
-                # I don't know what the right thing to do is here,
-                # so be conservative and raise an error.
-                #
-                # N.B. I don't think this can happen when using auto-config
-                # because Python will not let you have `arg` and `arg=val`
-                # in the same parameter list. (`discover_config`, below,
-                # guarantees that positional and named parameters are 
-                # disjoint.)
-                raise ProgrammerError('Configured object "%s" expects a '
-                                      '"%s" object to be available (from its '
-                                      'parameter list), but "%s" is already '
-                                      'defined as "%s" in its configuration.'
-                                      % (repr(configurable), other, other,
-                                         kwargs[other]))
             if not hasattr(self, other):
                 raise ProgrammerError('Configured object "%s" expects a '
                                       '"%s" object to be available (from its '
@@ -104,8 +79,9 @@ class AutoFactory (Configurable):
                                       'provide it.'
                                       % (repr(configurable), other,
                                          repr(self)))
-            kwargs[other] = getattr(self, other)
-        return configurable(**kwargs)
+            config[other] = getattr(self, other)
+        return configurable(**config)
+
 
 
 def create_configurable(obj):
@@ -118,17 +94,55 @@ def create_configurable(obj):
     A :exc:`yakonfig.ProgrammerError` is also raised if there was a
     problem discovering a configuration from ``obj``.
     '''
+    c = discover_config(obj)
+    class AutoConfigured (Configurable):
+        config_name = c['name']
+        services = c['required']
+        default_config = c['defaults']
+
+        def __init__(self):
+            self.obj = obj
+
+        def __call__(self, *args, **kwargs):
+            return self.obj(*args, **kwargs)
+
+        def check_config(self, config, name=''):
+            # This is assuming that `config` is the config dictionary of
+            # the *config parent*. That is, `config[self.config_name]`
+            # exists.
+            config = config.get(self.config_name, {})
+            extras = set(config.keys()).difference(self.default_config)
+            if len(extras) > 0:
+                raise ConfigurationError(
+                    'Unsupported config options for "%s": %s'
+                    % (self.config_name, ', '.join(extras)))
+
+            missing = set(self.default_config).difference(config)
+            if len(extras) > 0:
+                raise ConfigurationError(
+                    'Missing config options for "%s": %s'
+                    % (self.config_name, ', '.join(missing)))
+
+            for other in self.services:
+                if other in config:
+                    # I don't know what the right thing to do is here,
+                    # so be conservative and raise an error.
+                    #
+                    # N.B. I don't think this can happen when using auto-config
+                    # because Python will not let you have `arg` and `arg=val`
+                    # in the same parameter list. (`discover_config`, below,
+                    # guarantees that positional and named parameters are 
+                    # disjoint.)
+                    raise ProgrammerError(
+                        'Configured object "%s" expects a '
+                        '"%s" object to be available (from its '
+                        'parameter list), but "%s" is already '
+                        'defined as "%s" in its configuration.'
+                        % (repr(self), other, other, config[other]))
+
     # Using a function probably isn't a tenable strategy going forward if
     # we want to allow auto-configurable things to have children.
-    def as_configurable(obj, config_name, services, default_config):
-        def init(*args, **kwargs):
-            return obj(*args, **kwargs)
-        init.config_name = config_name
-        init.services = services
-        init.default_config = default_config
-        return init
-    c = discover_config(obj)
-    return as_configurable(obj, c['name'], c['required'], c['defaults'])
+    return AutoConfigured()
 
 
 def discover_config(obj):
@@ -159,8 +173,10 @@ def discover_config(obj):
        an auto-configurable to explicitly state all configuration.
 
     Similarly, if given an object that isn't a function/method/class, a
-    :exc:`yakonfig.ProgrammerError` will be raised. (It is a bug if any
-    other exception is raised.)
+    :exc:`yakonfig.ProgrammerError` will be raised.
+
+    If reflection cannot be performed on ``obj``, then a ``TypeError``
+    is raised.
     '''
     if inspect.isfunction(obj):
         name = obj.__name__
@@ -183,11 +199,7 @@ def discover_config(obj):
                               'automatically configure, but got a "%s" '
                               '(type: "%s").' % (repr(obj), type(obj)))
 
-    try:
-        argspec = inspect.getargspec(obj)
-    except TypeError as e:
-        raise ProgrammerError('Cannot detect config for "%s": %s'
-                              % (repr(obj), str(e)))
+    argspec = inspect.getargspec(obj)
     if argspec.varargs is not None or argspec.keywords is not None:
         raise ProgrammerError('The auto-configurable "%s" cannot contain '
                               '"*args" or "**kwargs" in its list of '

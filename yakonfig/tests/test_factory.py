@@ -93,6 +93,18 @@ def test_factory_defaults():
         yakonfig.clear_global_config()
 
 
+def test_factory_defaults_override():
+    factory = create_factory([configurable_defaults])
+    config = {'SimpleAutoFactory': {'configurable_defaults': {'b': 42}}}
+    yakonfig.set_default_config([factory], config=config)
+    try:
+        conf = yakonfig.get_global_config()['SimpleAutoFactory']
+        instantiated = factory.create(conf, configurable_defaults, b=43)
+        assert instantiated == configurable_defaults(b=43)
+    finally:
+        yakonfig.clear_global_config()
+
+
 def test_factory_services():
     factory = create_factory([configurable_services])
     factory.abc = 'abc'
