@@ -90,6 +90,13 @@ class Configurable(object):
         return {}
 
     @property
+    def services(self):
+        """
+        A list of services that a parent configuration can inject.
+        """
+        return []
+
+    @property
     def sub_modules(self):
         """Modules this module controls.
 
