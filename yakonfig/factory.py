@@ -196,6 +196,8 @@ class AutoConfigured (Configurable):
                     'Class "%s" does not have an "__init__" '
                     'method, so it cannot be auto configured.' % str(obj))
             name = obj.__name__
+            if hasattr(obj, 'config_name'):
+                name = obj.config_name
             inspect_obj = obj.__init__
             if not inspect.ismethod(inspect_obj):
                 raise ProgrammerError(
@@ -207,7 +209,7 @@ class AutoConfigured (Configurable):
                 'automatically configure, but got a "%s" '
                 '(type: "%s").' % (repr(obj), type(obj)))
 
-        argspec = inspect.getargspec(obj)
+        argspec = inspect.getargspec(inspect_obj)
         if argspec.varargs is not None or argspec.keywords is not None:
             raise ProgrammerError(
                 'The auto-configurable "%s" cannot contain '

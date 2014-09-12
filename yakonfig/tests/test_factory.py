@@ -45,6 +45,17 @@ def configurable_both(abc, xyz, a=1, b=2, c=3):
                 **configurable_defaults(a=a, b=b, c=c))
 
 
+class configurable_class(object):
+    def __init__(self, k='v'):
+        self.k = k
+
+
+class ConfigurableAltName(object):
+    config_name = 'configurable_alt_name'
+    def __init__(self, key='value'):
+        self.key = key
+
+
 def test_discover_defaults():
     conf = AutoConfigured(configurable_defaults)
     assert conf._discovered == {
@@ -143,3 +154,19 @@ def test_factory_extra_config():
     config = {'SimpleAutoFactory': {'configurable_defaults': {'ZZZ': 42}}}
     with pytest.raises(ConfigurationError):
         yakonfig.set_default_config([factory], config=config)
+
+
+def test_factory_class():
+    factory = create_factory([configurable_class])
+    with yakonfig.defaulted_config([factory], config={}) as config:
+        assert 'SimpleAutoFactory' in config
+        assert 'configurable_class' in config['SimpleAutoFactory']
+        assert config['SimpleAutoFactory']['configurable_class']['k'] == 'v'
+
+def test_factory_class_with_config_name():
+    factory = create_factory([ConfigurableAltName])
+    with yakonfig.defaulted_config([factory], config={}) as config:
+        assert 'SimpleAutoFactory' in config
+        assert 'configurable_alt_name' in config['SimpleAutoFactory']
+        assert (config['SimpleAutoFactory']['configurable_alt_name']['key'] ==
+                'value')
