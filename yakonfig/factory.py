@@ -146,7 +146,6 @@ class AutoFactory (Configurable):
             if other not in config:
                 try:
                     config[other] = getattr(self, other)
-                    print('added config[{!r}]'.format(other))
                 except AttributeError:
                     raise ProgrammerError(
                         'Configured object "%s" expects a '
