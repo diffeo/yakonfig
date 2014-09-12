@@ -14,18 +14,43 @@ except NameError:
 
 
 class AutoFactory (Configurable):
-    '''
-    A factory for *discovering* configuration from functions, methods
-    or classes. Clients that subclass ``AutoFactory`` must implement
-    the ``auto_config`` property, which should be an iterable of things
-    to automatically a configuration from. Notably, subclasses should
-    *not* implement ``sub_modules``, as this class provides its own
-    implementation of it using ``auto_config``.
+    '''A factory for *discovering* configuration from functions, methods
+    or classes.
+
+    Clients that subclass :class:`AutoFactory` must implement the
+    :attr:`auto_config` property, which should be an iterable of
+    things to automatically a configuration from. Notably, subclasses
+    should *not* implement :attr:`~yakonfig.Configurable.sub_modules`,
+    as this class provides its own implementation of it using
+    :attr:`auto_config`.
+
+    This class hooks into the :mod:`yakonfig` configuration sequence
+    to capture its part of the configuration at startup time.  If
+    this class is used outside the standard sequence, then you must
+    set :attr:`config` before calling :meth:`create`.
 
     Currently, this class does **not** support a hierarchical
-    configuration.
+    configuration: items in :attr:`auto_config` may not be
+    :class:`~yakonfig.Configurable`, and :class:`AutoFactory` objects
+    may not be nested.  This is likely to change in the future.
+
     '''
     __metaclass__ = abc.ABCMeta
+
+    def __init__(self, config=None):
+        '''Create a new object factory.
+
+        If `config` is :const:`None` (the default), then the
+        :attr:`config` property must be set before calling
+        :meth:`create`.  Passing this factory object to
+        :func:`yakonfig.parse_args` or a similar high-level
+        :mod:`yakonfig` setup method will also accomplish this.
+
+        :param dict config: local configuration dictionary (if available)
+        
+        '''
+        super(AutoFactory, self).__init__()
+        self._config = config
 
     @property
     def sub_modules(self):
@@ -33,46 +58,69 @@ class AutoFactory (Configurable):
 
     @abc.abstractproperty
     def auto_config(self):
-        '''
-        Must return a list of objects to automatically configure.
+        '''Must return a list of objects to automatically configure.
 
         This list is interpreted shallowly. That is, all configuration
         from each object is discovered through its name and parameter
         list only. Everything else is ignored.
+
         '''
         pass
+
 
     def check_config(self, config, prefix=''):
         for child in self.sub_modules:
             child.check_config(config)
 
-    def create(self, config, configurable, **kwargs):
+    def normalize_config(self, config):
+        '''Rewrite (and capture) the configuration of this object.'''
+        self.config = config
+
+    @property
+    def config(self):
+        '''Saved configuration for the factory and its sub-objects.'''
+        if self._config is None:
+            raise ProgrammerError(
+                'Tried to access saved factory configuration before '
+                'yakonfig configuration was run.')
+        return self._config
+    @config.setter
+    def config(self, c):
+        self._config = c
+        self.new_config()
+
+    def new_config(self):
+        '''Hook called when the configuration changes.
+
+        If factory implementations keep properties that are created
+        from the configuration, this is a place to create or reset them.
+        The base class implementation does nothing.
+
         '''
-        Instantiates the ``configurable`` object with the
-        configuration ``config`` given. This essentially translates
-        to ``configurable(**config)``, except services defined
-        in the parent and requested by ``configurable`` (by
-        setting the ``services`` attribute) are injected. If a
-        service is not defined on this factory object, then a
+        pass
+
+    def create(self, configurable, **kwargs):
+        '''Create a sub-object of this factory.
+
+        Instantiates the `configurable` object with the current saved
+        :attr:`config`.  This essentially translates to
+        ``configurable(**config)``, except services defined in the
+        parent and requested by `configurable` (by setting the
+        ``services`` attribute) are injected. If a service is not
+        defined on this factory object, then a
         :exc:`yakonfig.ProgrammerError` is raised.
 
         If ``configurable`` does not satisfy the
         :class:`yakonfig.Configurable` interface, then its
         configuration is automatically discovered.
 
-        ``config`` should be a dictionary with the key
-        ``configurable.config_name``. If the key does not exist, then
-        an empty configuration is given to ``configurable``.
-
-        Neither ``config`` or ``configurable`` are modified.
-        ``configurable`` is given a *deep* copy of the configuration.
         '''
         # Regenerate the configuration ifneedbe.
         if not isinstance(configurable, AutoConfigured):
             configurable = AutoConfigured(configurable)
 
         # don't mutate given config
-        config = dict(config.get(configurable.config_name, {}), **kwargs)
+        config = dict(self.config.get(configurable.config_name, {}), **kwargs)
         config = copy.deepcopy(config)
         for other in getattr(configurable, 'services', []):
             if not hasattr(self, other):

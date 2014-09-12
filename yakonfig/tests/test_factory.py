@@ -96,8 +96,7 @@ def test_factory_defaults():
     factory = create_factory([configurable_defaults])
     config = {'SimpleAutoFactory': {'configurable_defaults': {'b': 42}}}
     with yakonfig.defaulted_config([factory], config=config):
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        instantiated = factory.create(conf, configurable_defaults)
+        instantiated = factory.create(configurable_defaults)
         assert instantiated == configurable_defaults(b=42)
 
 
@@ -105,9 +104,23 @@ def test_factory_defaults_override():
     factory = create_factory([configurable_defaults])
     config = {'SimpleAutoFactory': {'configurable_defaults': {'b': 42}}}
     with yakonfig.defaulted_config([factory], config=config):
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        instantiated = factory.create(conf, configurable_defaults, b=43)
+        instantiated = factory.create(configurable_defaults, b=43)
         assert instantiated == configurable_defaults(b=43)
+
+
+def test_factory_without_config():
+    factory = create_factory([configurable_defaults])
+    with pytest.raises(yakonfig.ProgrammerError):
+        factory.create(configurable_defaults)
+
+
+def test_factory_explicit_config():
+    factory = create_factory([configurable_defaults])
+    factory.config = {'configurable_defaults': {'b': 42}}
+    instantiated = factory.create(configurable_defaults)
+    assert instantiated['a'] == 1
+    assert instantiated['b'] == 42
+    assert instantiated['c'] == 3
 
 
 def test_factory_services():
@@ -115,8 +128,7 @@ def test_factory_services():
     factory.abc = 'abc'
     factory.xyz = 'xyz'
     with yakonfig.defaulted_config([factory]):
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        instantiated = factory.create(conf, configurable_services)
+        instantiated = factory.create(configurable_services)
         assert instantiated == configurable_services('abc', 'xyz')
 
 
@@ -126,8 +138,7 @@ def test_factory_defaults_and_services():
     factory.xyz = 'xyz'
     config = {'SimpleAutoFactory': {'configurable_both': {'c': 42}}}
     with yakonfig.defaulted_config([factory], config=config):
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        instantiated = factory.create(conf, configurable_both)
+        instantiated = factory.create(configurable_both)
         assert instantiated == configurable_both('abc', 'xyz', c=42)
 
 
@@ -135,9 +146,8 @@ def test_factory_missing_service():
     factory = create_factory([configurable_services])
     # Not adding any services to `factory`...
     with yakonfig.defaulted_config([factory]):
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
         with pytest.raises(ProgrammerError):
-            factory.create(conf, configurable_services)
+            factory.create(configurable_services)
 
 
 def test_factory_service_config_conflict():
