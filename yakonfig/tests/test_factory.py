@@ -4,32 +4,32 @@ import pytest
 
 import yakonfig
 from yakonfig import ConfigurationError, ProgrammerError
-from yakonfig.factory import AutoFactory, discover_config
+from yakonfig.factory import AutoFactory, AutoConfigured
 
 
 def test_no_tuple_unpacking():
     def fun((a, b)): pass
     with pytest.raises(ProgrammerError):
-        discover_config(fun)
+        AutoConfigured(fun)
 
 
 def test_no_var_args():
     def fun(*args): pass
     with pytest.raises(ProgrammerError):
-        discover_config(fun)
+        AutoConfigured(fun)
 
 
 def test_no_var_kw_args():
     def fun(**kwargs): pass
     with pytest.raises(ProgrammerError):
-        discover_config(fun)
+        AutoConfigured(fun)
 
 
 def test_bad_class():
     class OldStyle:
         pass
     with pytest.raises(ProgrammerError):
-        discover_config(OldStyle)
+        AutoConfigured(OldStyle)
 
 
 def configurable_defaults(a=1, b=2, c=3):
@@ -46,8 +46,8 @@ def configurable_both(abc, xyz, a=1, b=2, c=3):
 
 
 def test_discover_defaults():
-    conf = discover_config(configurable_defaults)
-    assert conf == {
+    conf = AutoConfigured(configurable_defaults)
+    assert conf._discovered == {
         'name': 'configurable_defaults',
         'required': [],
         'defaults': {'a': 1, 'b': 2, 'c': 3},
@@ -55,8 +55,8 @@ def test_discover_defaults():
 
 
 def test_discover_services():
-    conf = discover_config(configurable_services)
-    assert conf == {
+    conf = AutoConfigured(configurable_services)
+    assert conf._discovered == {
         'name': 'configurable_services',
         'required': ['abc', 'xyz'],
         'defaults': {},
@@ -64,8 +64,8 @@ def test_discover_services():
 
 
 def test_discover_both():
-    conf = discover_config(configurable_both)
-    assert conf == {
+    conf = AutoConfigured(configurable_both)
+    assert conf._discovered == {
         'name': 'configurable_both',
         'required': ['abc', 'xyz'],
         'defaults': {'a': 1, 'b': 2, 'c': 3},
@@ -84,38 +84,29 @@ def create_factory(configurables):
 def test_factory_defaults():
     factory = create_factory([configurable_defaults])
     config = {'SimpleAutoFactory': {'configurable_defaults': {'b': 42}}}
-    yakonfig.set_default_config([factory], config=config)
-    try:
+    with yakonfig.defaulted_config([factory], config=config):
         conf = yakonfig.get_global_config()['SimpleAutoFactory']
         instantiated = factory.create(conf, configurable_defaults)
         assert instantiated == configurable_defaults(b=42)
-    finally:
-        yakonfig.clear_global_config()
 
 
 def test_factory_defaults_override():
     factory = create_factory([configurable_defaults])
     config = {'SimpleAutoFactory': {'configurable_defaults': {'b': 42}}}
-    yakonfig.set_default_config([factory], config=config)
-    try:
+    with yakonfig.defaulted_config([factory], config=config):
         conf = yakonfig.get_global_config()['SimpleAutoFactory']
         instantiated = factory.create(conf, configurable_defaults, b=43)
         assert instantiated == configurable_defaults(b=43)
-    finally:
-        yakonfig.clear_global_config()
 
 
 def test_factory_services():
     factory = create_factory([configurable_services])
     factory.abc = 'abc'
     factory.xyz = 'xyz'
-    yakonfig.set_default_config([factory])
-    try:
+    with yakonfig.defaulted_config([factory]):
         conf = yakonfig.get_global_config()['SimpleAutoFactory']
         instantiated = factory.create(conf, configurable_services)
         assert instantiated == configurable_services('abc', 'xyz')
-    finally:
-        yakonfig.clear_global_config()
 
 
 def test_factory_defaults_and_services():
@@ -123,25 +114,19 @@ def test_factory_defaults_and_services():
     factory.abc = 'abc'
     factory.xyz = 'xyz'
     config = {'SimpleAutoFactory': {'configurable_both': {'c': 42}}}
-    yakonfig.set_default_config([factory], config=config)
-    try:
+    with yakonfig.defaulted_config([factory], config=config):
         conf = yakonfig.get_global_config()['SimpleAutoFactory']
         instantiated = factory.create(conf, configurable_both)
         assert instantiated == configurable_both('abc', 'xyz', c=42)
-    finally:
-        yakonfig.clear_global_config()
 
 
 def test_factory_missing_service():
     factory = create_factory([configurable_services])
     # Not adding any services to `factory`...
-    yakonfig.set_default_config([factory])
-    try:
+    with yakonfig.defaulted_config([factory]):
         conf = yakonfig.get_global_config()['SimpleAutoFactory']
         with pytest.raises(ProgrammerError):
             factory.create(conf, configurable_services)
-    finally:
-        yakonfig.clear_global_config()
 
 
 def test_factory_service_config_conflict():
@@ -149,22 +134,12 @@ def test_factory_service_config_conflict():
     factory.abc = 'abc'
     factory.xyz = 'xyz'
     config = {'SimpleAutoFactory': {'configurable_services': {'abc': 'abc'}}}
-    yakonfig.set_default_config([factory], config=config)
-    try:
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        with pytest.raises(ConfigurationError):
-            factory.create(conf, configurable_services)
-    finally:
-        yakonfig.clear_global_config()
+    with pytest.raises(ConfigurationError):
+        yakonfig.set_default_config([factory], config=config)
 
 
 def test_factory_extra_config():
     factory = create_factory([configurable_defaults])
     config = {'SimpleAutoFactory': {'configurable_defaults': {'ZZZ': 42}}}
-    yakonfig.set_default_config([factory], config=config)
-    try:
-        conf = yakonfig.get_global_config()['SimpleAutoFactory']
-        with pytest.raises(ConfigurationError):
-            factory.create(conf, configurable_defaults)
-    finally:
-        yakonfig.clear_global_config()
+    with pytest.raises(ConfigurationError):
+        yakonfig.set_default_config([factory], config=config)
