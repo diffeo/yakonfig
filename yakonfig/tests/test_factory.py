@@ -222,3 +222,22 @@ def test_factory_class_with_config_name():
         assert instantiated.key == 'value'
         instantiated = factory.create(ConfigurableAltName, key='key')
         assert instantiated.key == 'key'
+
+
+class FactoryWithProperty(AutoFactory):
+    config_name = 'factory_with_property'
+    auto_config = [configurable_services]
+    @property
+    def abc(self):
+        return 'foo'
+    @property
+    def xyz(self):
+        return 'bar'
+
+
+def test_factory_with_property():
+    factory = FactoryWithProperty()
+    with yakonfig.defaulted_config([factory]):
+        instantiated = factory.create(configurable_services)
+        assert instantiated['abc'] == 'foo'
+        assert instantiated['xyz'] == 'bar'

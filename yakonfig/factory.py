@@ -146,7 +146,7 @@ class AutoFactory (Configurable):
                     '"%s" object to be available (from its '
                     'parameter list), but "%s" does not '
                     'provide it.'
-                    % (repr(configurable), other, repr(self)))
+                    % (repr(configurable.obj), other, repr(self)))
             config[other] = getattr(self, other)
         return configurable(**config)
 
