@@ -83,6 +83,23 @@ def test_discover_both():
     }
 
 
+def test_discover_class():
+    conf = AutoConfigured(configurable_class)
+    assert conf._discovered == {
+        'name': 'configurable_class',
+        'required': [],
+        'defaults': {'k': 'v'},
+    }
+
+def test_discover_class_alt_name():
+    conf = AutoConfigured(ConfigurableAltName)
+    assert conf._discovered == {
+        'name': 'configurable_alt_name',
+        'required': [],
+        'defaults': {'key': 'value'},
+    }
+
+
 def create_factory(configurables):
     class SimpleAutoFactory (AutoFactory):
         config_name = 'SimpleAutoFactory'
@@ -118,6 +135,14 @@ def test_factory_explicit_config():
     factory = create_factory([configurable_defaults])
     factory.config = {'configurable_defaults': {'b': 42}}
     instantiated = factory.create(configurable_defaults)
+    assert instantiated['a'] == 1
+    assert instantiated['b'] == 42
+    assert instantiated['c'] == 3
+
+
+def test_factory_param_config():
+    factory = create_factory([configurable_defaults])
+    instantiated = factory.create(configurable_defaults, config={'b': 42})
     assert instantiated['a'] == 1
     assert instantiated['b'] == 42
     assert instantiated['c'] == 3
@@ -172,6 +197,19 @@ def test_factory_class():
         assert 'SimpleAutoFactory' in config
         assert 'configurable_class' in config['SimpleAutoFactory']
         assert config['SimpleAutoFactory']['configurable_class']['k'] == 'v'
+        instantiated = factory.create(configurable_class)
+        assert instantiated.k == 'v'
+        instantiated = factory.create(configurable_class, k='k')
+        assert instantiated.k == 'k'
+
+
+def test_factory_class_by_name():
+    factory = create_factory([configurable_class])
+    with yakonfig.defaulted_config([factory], config={}):
+        instantiated = factory.create('configurable_class')
+        assert isinstance(instantiated, configurable_class)
+        assert instantiated.k == 'v'
+
 
 def test_factory_class_with_config_name():
     factory = create_factory([ConfigurableAltName])
@@ -180,3 +218,7 @@ def test_factory_class_with_config_name():
         assert 'configurable_alt_name' in config['SimpleAutoFactory']
         assert (config['SimpleAutoFactory']['configurable_alt_name']['key'] ==
                 'value')
+        instantiated = factory.create(ConfigurableAltName)
+        assert instantiated.key == 'value'
+        instantiated = factory.create(ConfigurableAltName, key='key')
+        assert instantiated.key == 'key'

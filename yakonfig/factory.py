@@ -99,7 +99,7 @@ class AutoFactory (Configurable):
         '''
         pass
 
-    def create(self, configurable, **kwargs):
+    def create(self, configurable, config=None, **kwargs):
         '''Create a sub-object of this factory.
 
         Instantiates the `configurable` object with the current saved
@@ -110,17 +110,34 @@ class AutoFactory (Configurable):
         defined on this factory object, then a
         :exc:`yakonfig.ProgrammerError` is raised.
 
-        If ``configurable`` does not satisfy the
-        :class:`yakonfig.Configurable` interface, then its
-        configuration is automatically discovered.
+        If `config` is provided, it is a local configuration for
+        `configurable`, and it overrides the saved local configuration
+        (if any).  If not provided, then :attr:`config` must already be
+        set, possibly by passing this object into the :mod:`yakonfig`
+        top-level setup sequence.
+
+        :param callable configurable: object to create
+        :param dict config: local configuration for `configurable`
+        :param kwargs: additional keyword parameters
+        :return: ``configurable(**config)``
 
         '''
+        # If we got passed a string, find the thing to make.
+        if isinstance(configurable, str):
+            candidates = [ac for ac in self.sub_modules
+                          if ac.config_name == configurable]
+            if len(candidates) == 0:
+                raise KeyError(configurable)
+            configurable = candidates[0]
+
         # Regenerate the configuration ifneedbe.
         if not isinstance(configurable, AutoConfigured):
             configurable = AutoConfigured(configurable)
 
         # don't mutate given config
-        config = dict(self.config.get(configurable.config_name, {}), **kwargs)
+        if config is None:
+            config = self.config.get(configurable.config_name, {})
+        config = dict(config, **kwargs)
         config = copy.deepcopy(config)
         for other in getattr(configurable, 'services', []):
             if not hasattr(self, other):
@@ -232,12 +249,15 @@ class AutoConfigured (Configurable):
         is raised.
         '''
         obj = self.obj
+        skip_params = 0
         if inspect.isfunction(obj):
             name = obj.__name__
             inspect_obj = obj
+            skip_params = 0
         elif inspect.ismethod(obj):
             name = obj.im_func.__name__
             inspect_obj = obj
+            skip_params = 1  # self
         elif inspect.isclass(obj):
             if not hasattr(obj, '__init__'):
                 raise ProgrammerError(
@@ -251,6 +271,7 @@ class AutoConfigured (Configurable):
                 raise ProgrammerError(
                     '"%s.__init__" is not a method '
                     '(it is a "%s").' % (str(obj), type(obj)))
+            skip_params = 1  # self
         else:
             raise ProgrammerError(
                 'Expected a function, method or class to '
@@ -276,7 +297,7 @@ class AutoConfigured (Configurable):
         i_defaults = len(argspec.args) - len(defaults)
         return {
             'name': name,
-            'required': argspec.args[0:i_defaults],
+            'required': argspec.args[skip_params:i_defaults],
             'defaults': {k: defaults[i]
                          for i, k in enumerate(argspec.args[i_defaults:])},
         }
