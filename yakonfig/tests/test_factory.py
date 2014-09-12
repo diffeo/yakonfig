@@ -157,6 +157,15 @@ def test_factory_services():
         assert instantiated == configurable_services('abc', 'xyz')
 
 
+def test_factory_services_override():
+    factory = create_factory([configurable_services])
+    factory.abc = 'abc'
+    factory.xyz = 'xyz'
+    with yakonfig.defaulted_config([factory]):
+        instantiated = factory.create(configurable_services, xyz='foo')
+        assert instantiated == configurable_services('abc', 'foo')
+
+
 def test_factory_defaults_and_services():
     factory = create_factory([configurable_both])
     factory.abc = 'abc'

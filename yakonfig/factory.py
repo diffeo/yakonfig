@@ -134,20 +134,26 @@ class AutoFactory (Configurable):
         if not isinstance(configurable, AutoConfigured):
             configurable = AutoConfigured(configurable)
 
-        # don't mutate given config
         if config is None:
             config = self.config.get(configurable.config_name, {})
+        # shallow-copy config and append kwargs to it
         config = dict(config, **kwargs)
-        config = copy.deepcopy(config)
         for other in getattr(configurable, 'services', []):
-            if not hasattr(self, other):
-                raise ProgrammerError(
-                    'Configured object "%s" expects a '
-                    '"%s" object to be available (from its '
-                    'parameter list), but "%s" does not '
-                    'provide it.'
-                    % (repr(configurable.obj), other, repr(self)))
-            config[other] = getattr(self, other)
+            # AutoConfigured.check_config() validates that this key
+            # wasn't in the global config, so this must have come from
+            # either our own config parameter, a keyword arg, or
+            # the caller setting factory.config; trust those paths.
+            if other not in config:
+                try:
+                    config[other] = getattr(self, other)
+                    print('added config[{!r}]'.format(other))
+                except AttributeError:
+                    raise ProgrammerError(
+                        'Configured object "%s" expects a '
+                        '"%s" object to be available (from its '
+                        'parameter list), but "%s" does not '
+                        'provide it.'
+                        % (repr(configurable.obj), other, repr(self)))
         return configurable(**config)
 
 
