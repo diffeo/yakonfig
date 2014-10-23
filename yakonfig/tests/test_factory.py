@@ -49,6 +49,11 @@ class configurable_class(object):
     def __init__(self, k='v'):
         self.k = k
 
+class configurable_new_class(object):
+    def __new__(self, k='new'):
+        self.k = k
+    def __init__(self, k='init'):
+        self.k = k
 
 class ConfigurableAltName(object):
     config_name = 'configurable_alt_name'
@@ -90,6 +95,16 @@ def test_discover_class():
         'required': [],
         'defaults': {'k': 'v'},
     }
+
+
+def test_discover_new_class():
+    conf = AutoConfigured(configurable_new_class)
+    assert conf._discovered == {
+        'name': 'configurable_new_class',
+        'required': [],
+        'defaults': {'k': 'new'},
+    }
+
 
 def test_discover_class_alt_name():
     conf = AutoConfigured(ConfigurableAltName)

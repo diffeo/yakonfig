@@ -264,18 +264,23 @@ class AutoConfigured (Configurable):
             inspect_obj = obj
             skip_params = 1  # self
         elif inspect.isclass(obj):
-            if not hasattr(obj, '__init__'):
+            inspect_obj = None
+            if hasattr(obj, '__dict__') and '__new__' in obj.__dict__:
+                inspect_obj = obj.__new__
+            elif hasattr(obj, '__init__'):
+                inspect_obj = obj.__init__
+            else:
                 raise ProgrammerError(
-                    'Class "%s" does not have an "__init__" '
+                    'Class "%s" does not have a "__new__" or "__init__" '
                     'method, so it cannot be auto configured.' % str(obj))
             name = obj.__name__
             if hasattr(obj, 'config_name'):
                 name = obj.config_name
-            inspect_obj = obj.__init__
-            if not inspect.ismethod(inspect_obj):
+            if not inspect.ismethod(inspect_obj) \
+                    and not inspect.isfunction(inspect_obj):
                 raise ProgrammerError(
-                    '"%s.__init__" is not a method '
-                    '(it is a "%s").' % (str(obj), type(obj)))
+                    '"%s.%s" is not a method/function (it is a "%s").'
+                    % (str(obj), inspect_obj.__name__, type(inspect_obj)))
             skip_params = 1  # self
         else:
             raise ProgrammerError(
