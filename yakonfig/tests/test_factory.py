@@ -195,7 +195,7 @@ def test_factory_missing_service():
     factory = create_factory([configurable_services])
     # Not adding any services to `factory`...
     with yakonfig.defaulted_config([factory]):
-        with pytest.raises(ProgrammerError):
+        with pytest.raises(AttributeError):
             factory.create(configurable_services)
 
 
