@@ -144,15 +144,10 @@ class AutoFactory (Configurable):
             # either our own config parameter, a keyword arg, or
             # the caller setting factory.config; trust those paths.
             if other not in config:
-                try:
-                    config[other] = getattr(self, other)
-                except AttributeError:
-                    raise ProgrammerError(
-                        'Configured object "%s" expects a '
-                        '"%s" object to be available (from its '
-                        'parameter list), but "%s" does not '
-                        'provide it.'
-                        % (repr(configurable.obj), other, repr(self)))
+                # We're not catching an `AttributeError` exception here because
+                # it may case a net too wide which makes debugging underlying
+                # errors more difficult.
+                config[other] = getattr(self, other)
         return configurable(**config)
 
 
