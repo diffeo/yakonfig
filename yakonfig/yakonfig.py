@@ -3,15 +3,9 @@
 .. This software is released under an MIT/X11 open source license.
    Copyright 2013-2014 Diffeo, Inc.
 
-Purpose
-=======
-
 This maintains a global configuration dictionary.
 :func:`get_global_config` will get the entire dictionary, or specific
 keys from it.
-
-Module Contents
-===============
 
 '''
 from __future__ import absolute_import
@@ -19,7 +13,6 @@ import collections
 import contextlib
 import importlib
 import logging
-import pdb
 import os
 
 import yaml
@@ -35,7 +28,7 @@ class Loader(yaml.Loader):
     '''YAML loader aware of yakonfig extensions.'''
 
     def __init__(self, stream):
-        ## find root path for !include relative path
+        # find root path for !include relative path
         streamname = getattr(stream, 'name', None)
         if streamname:
             self._root = os.path.dirname(streamname)
@@ -51,17 +44,19 @@ class Loader(yaml.Loader):
         mod_name = self.construct_scalar(node)
         parts = mod_name.split('.')
         if not len(parts) >= 2:
-            raise Exception('!include_func expects full.path.to.func(), not %r' % mod_name)
+            raise Exception('!include_func expects full.path.to.func(), '
+                            'not %r' % mod_name)
         func_name = parts[-1]
         mod_name = '.'.join(parts[:-1])
         mod = importlib.import_module(mod_name)
         func = getattr(mod, func_name, None)
         if not func:
-            raise Exception('%r not found in %r, dir(%r) = %r' % (func_name, mod_name, mod_name, dir(mod)))
+            raise Exception('%r not found in %r, dir(%r) = %r' %
+                            (func_name, mod_name, mod_name, dir(mod)))
 
         if func_name.endswith('yaml'):
-            ## functions named ".*yaml$" must return YAML to which we
-            ## apply this Loader
+            # functions named ".*yaml$" must return YAML to which we
+            # apply this Loader
             return yaml.load(func(), Loader)
         else:
             return func()
@@ -73,7 +68,8 @@ class Loader(yaml.Loader):
         filename = self.construct_scalar(node)
         if not filename.startswith('/'):
             if self._root is None:
-                raise Exception('!include_yaml %s is a relative path, but stream lacks path' % filename)
+                raise Exception('!include_yaml %s is a relative path, '
+                                'but stream lacks path' % filename)
             filename = os.path.join(self._root, self.construct_scalar(node))
         with self.open(filename, 'r') as fin:
             return yaml.load(fin, Loader)
@@ -118,7 +114,9 @@ def set_global_config(path_dict_or_stream):
     if isinstance(path_dict_or_stream, basestring):
         path = path_dict_or_stream
         if _config_file_path and _config_file_path != path:
-            raise Exception('set_global_config(%r) differs from %r, consider calling clear_global_config first' % (path, _config_file_path))
+            raise Exception('set_global_config(%r) differs from %r, '
+                            'consider calling clear_global_config first' %
+                            (path, _config_file_path))
         _config_file_path = path
         stream = open(path)
 
@@ -129,18 +127,18 @@ def set_global_config(path_dict_or_stream):
         stream = path_dict_or_stream
 
     else:
-        raise Exception('set_global_config(%r) instead of a path, mapping object, or stream open for reading' % path_dict_or_stream)
+        raise Exception('set_global_config(%r) instead of a path, '
+                        'mapping object, or stream open for reading' %
+                        path_dict_or_stream)
 
     if stream is not None:
         mapping = yaml.load(stream, Loader)
-
-    if _config_cache is not None:
-        logger.warn('resetting config to all new values')
 
     _config_cache = mapping
 
     # TODO: convert to frozen dict?
     return _config_cache
+
 
 def get_global_config(*args):
     '''Get (a subset of) the global configuration.
@@ -158,11 +156,13 @@ def get_global_config(*args):
     global _config_cache
     c = _config_cache
     if c is None:
-        if len(args) == 0: args = (None,)
+        if len(args) == 0:
+            args = (None,)
         raise KeyError(args[0])
     for a in args:
         c = c[a]
     return c
+
 
 @contextlib.contextmanager
 def _temporary_config():
