@@ -8,28 +8,31 @@ from yakonfig.factory import AutoFactory, AutoConfigured
 
 
 def test_no_tuple_unpacking():
-    def fun((a, b)): pass
+    def fun((a, b)):
+        pass
     with pytest.raises(ProgrammerError):
-        AutoConfigured(fun)
+        AutoConfigured.inspect_obj(fun)
 
 
 def test_no_var_args():
-    def fun(*args): pass
+    def fun(*args):
+        pass
     with pytest.raises(ProgrammerError):
-        AutoConfigured(fun)
+        AutoConfigured.inspect_obj(fun)
 
 
 def test_no_var_kw_args():
-    def fun(**kwargs): pass
+    def fun(**kwargs):
+        pass
     with pytest.raises(ProgrammerError):
-        AutoConfigured(fun)
+        AutoConfigured.inspect_obj(fun)
 
 
 def test_bad_class():
     class OldStyle:
         pass
     with pytest.raises(ProgrammerError):
-        AutoConfigured(OldStyle)
+        AutoConfigured.inspect_obj(OldStyle)
 
 
 def configurable_defaults(a=1, b=2, c=3):
@@ -49,21 +52,38 @@ class configurable_class(object):
     def __init__(self, k='v'):
         self.k = k
 
+
 class configurable_new_class(object):
     def __new__(self, k='new'):
         self.k = k
+
     def __init__(self, k='init'):
         self.k = k
 
+
 class ConfigurableAltName(object):
     config_name = 'configurable_alt_name'
+
     def __init__(self, key='value'):
         self.key = key
 
 
+class configurable_config_param(object):
+    def __init__(self, config):
+        self.config = config
+
+
+class configurable_legacy(object):
+    config_name = 'configurable_legacy'
+    default_config = {'k': 'v'}
+
+    def __init__(self, config):
+        self.config = config
+
+
 def test_discover_defaults():
-    conf = AutoConfigured(configurable_defaults)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(configurable_defaults)
+    assert conf == {
         'name': 'configurable_defaults',
         'required': [],
         'defaults': {'a': 1, 'b': 2, 'c': 3},
@@ -71,8 +91,8 @@ def test_discover_defaults():
 
 
 def test_discover_services():
-    conf = AutoConfigured(configurable_services)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(configurable_services)
+    assert conf == {
         'name': 'configurable_services',
         'required': ['abc', 'xyz'],
         'defaults': {},
@@ -80,8 +100,8 @@ def test_discover_services():
 
 
 def test_discover_both():
-    conf = AutoConfigured(configurable_both)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(configurable_both)
+    assert conf == {
         'name': 'configurable_both',
         'required': ['abc', 'xyz'],
         'defaults': {'a': 1, 'b': 2, 'c': 3},
@@ -89,8 +109,8 @@ def test_discover_both():
 
 
 def test_discover_class():
-    conf = AutoConfigured(configurable_class)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(configurable_class)
+    assert conf == {
         'name': 'configurable_class',
         'required': [],
         'defaults': {'k': 'v'},
@@ -98,8 +118,8 @@ def test_discover_class():
 
 
 def test_discover_new_class():
-    conf = AutoConfigured(configurable_new_class)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(configurable_new_class)
+    assert conf == {
         'name': 'configurable_new_class',
         'required': [],
         'defaults': {'k': 'new'},
@@ -107,17 +127,51 @@ def test_discover_new_class():
 
 
 def test_discover_class_alt_name():
-    conf = AutoConfigured(ConfigurableAltName)
-    assert conf._discovered == {
+    conf = AutoConfigured.inspect_obj(ConfigurableAltName)
+    assert conf == {
         'name': 'configurable_alt_name',
         'required': [],
         'defaults': {'key': 'value'},
     }
 
 
+def test_discover_config_param():
+    conf = AutoConfigured.inspect_obj(configurable_config_param)
+    assert conf == {
+        'name': 'configurable_config_param',
+        'required': ['config'],
+        'defaults': {},
+    }
+
+
+def test_from_obj_config_param():
+    proxy = AutoConfigured.from_obj(configurable_config_param)
+    assert isinstance(proxy, AutoConfigured)
+    proxy = AutoConfigured.from_obj(configurable_config_param,
+                                    any_configurable=True)
+    assert isinstance(proxy, AutoConfigured)
+
+
+def test_discover_legacy():
+    conf = AutoConfigured.inspect_obj(configurable_legacy)
+    assert conf == {
+        'name': 'configurable_legacy',
+        'required': ['config'],
+        'defaults': {},
+    }
+
+
+def test_from_obj_legacy():
+    proxy = AutoConfigured.from_obj(configurable_legacy)
+    assert isinstance(proxy, AutoConfigured)
+    proxy = AutoConfigured.from_obj(configurable_legacy, any_configurable=True)
+    assert proxy is configurable_legacy
+
+
 def create_factory(configurables):
     class SimpleAutoFactory (AutoFactory):
         config_name = 'SimpleAutoFactory'
+
         @property
         def auto_config(self):
             return configurables
@@ -248,12 +302,52 @@ def test_factory_class_with_config_name():
         assert instantiated.key == 'key'
 
 
+def test_factory_class_config_param_defaults():
+    factory = create_factory([configurable_config_param])
+    with yakonfig.defaulted_config([factory], config={}) as config:
+        assert 'SimpleAutoFactory' in config
+        assert 'configurable_config_param' in config['SimpleAutoFactory']
+        instantiated = factory.create(configurable_config_param)
+        assert instantiated.config == {}
+        instantiated = factory.create(configurable_config_param,
+                                      config={'k': 'v'})
+        assert instantiated.config == {'k': 'v'}
+        instantiated = factory.create(configurable_config_param, a='b')
+        assert instantiated.config == {'a': 'b'}
+
+
+def test_factory_class_config_param():
+    factory = create_factory([configurable_config_param])
+    config = {'SimpleAutoFactory': {'configurable_config_param': {'k': 'v'}}}
+    with yakonfig.defaulted_config([factory], config=config) as config:
+        assert 'SimpleAutoFactory' in config
+        assert 'configurable_config_param' in config['SimpleAutoFactory']
+        instantiated = factory.create(configurable_config_param)
+        assert instantiated.config == {'k': 'v'}
+        instantiated = factory.create(configurable_config_param,
+                                      config={'x': 'y'})
+        assert instantiated.config == {'x': 'y'}
+        instantiated = factory.create(configurable_config_param, a='b')
+        assert instantiated.config == {'k': 'v', 'a': 'b'}
+
+
+def test_factory_legacy_configurable():
+    factory = create_factory([configurable_legacy])
+    with yakonfig.defaulted_config([factory], config={}) as config:
+        assert 'SimpleAutoFactory' in config
+        assert 'configurable_legacy' in config['SimpleAutoFactory']
+        instantiated = factory.create(configurable_legacy)
+        assert instantiated.config == configurable_legacy.default_config
+
+
 class FactoryWithProperty(AutoFactory):
     config_name = 'factory_with_property'
     auto_config = [configurable_services]
+
     @property
     def abc(self):
         return 'foo'
+
     @property
     def xyz(self):
         return 'bar'

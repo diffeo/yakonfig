@@ -1,21 +1,23 @@
+'''Discover object configuration from parameter lists.
+
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2014-2015 Diffeo, Inc.
+
+.. autoclass:: AutoFactory
+
+'''
 from __future__ import absolute_import, division, print_function
 import abc
-import copy
 import inspect
+
+import six
 
 from yakonfig.configurable import Configurable
 from yakonfig.exceptions import ConfigurationError, ProgrammerError
 
 
-try:
-    strtype = basestring
-except NameError:
-    strtype = str
-
-
 class AutoFactory (Configurable):
-    '''A factory for *discovering* configuration from functions, methods
-    or classes.
+    '''A configurable that discovers the its childrens' configuration.
 
     Clients that subclass :class:`AutoFactory` must implement the
     :attr:`auto_config` property, which should be an iterable of
@@ -24,10 +26,34 @@ class AutoFactory (Configurable):
     as this class provides its own implementation of it using
     :attr:`auto_config`.
 
+    Items in :attr:`auto_config` may be functions, methods, or
+    classes.  If a class, its `__new__` or `__init__` function will be
+    inspected.  Any parameters beyond :keyword:`self` are extracted
+    from this function.  Keyword parameters with default values become
+    the default configuration of the object.  Parameters without
+    default values must be provided by the :class:`AutoFactory`
+    instance as properties of the derived class.  The configurable
+    callables may not take variable argument lists (``*args,
+    **kwargs``).  If they are classes, they may have a
+    :attr:`~yakonfig.Configurable.config_name` but no other
+    :class:`~yakonfig.Configurable` metadata.
+
+    As a special case, if a configurable callable contains a parameter
+    named `config`, that parameter will receive the child's config
+    dictionary (as distinct from the parent's saved config dictionary
+    :attr:`config`), and the configuration check will allow unexpected
+    configuration values.  This supports older modules that explicitly
+    passed configuration dictionaries to their children.  If the
+    configurable callable is a class with a
+    :attr:`~yakonfig.Configurable.config_name` then it is used
+    directly during the configuration cycle.
+
     This class hooks into the :mod:`yakonfig` configuration sequence
-    to capture its part of the configuration at startup time.  If
-    this class is used outside the standard sequence, then you must
-    set :attr:`config` before calling :meth:`create`.
+    to capture its part of the configuration at startup time.  Child
+    callables' configuration may not contain settings that are not any
+    of the defaulted parameters.  If this class is used outside the
+    standard sequence, then you must set :attr:`config` before calling
+    :meth:`create`.
 
     Currently, this class does **not** support a hierarchical
     configuration: items in :attr:`auto_config` may not be
@@ -47,14 +73,15 @@ class AutoFactory (Configurable):
         :mod:`yakonfig` setup method will also accomplish this.
 
         :param dict config: local configuration dictionary (if available)
-        
+
         '''
         super(AutoFactory, self).__init__()
         self._config = config
 
     @property
     def sub_modules(self):
-        return [AutoConfigured(obj) for obj in self.auto_config]
+        return [AutoConfigured.from_obj(obj, any_configurable=True)
+                for obj in self.auto_config]
 
     @abc.abstractproperty
     def auto_config(self):
@@ -67,10 +94,10 @@ class AutoFactory (Configurable):
         '''
         pass
 
-
     def check_config(self, config, prefix=''):
         for child in self.sub_modules:
-            child.check_config(config)
+            if hasattr(child, 'check_config'):
+                child.check_config(config)
 
     def normalize_config(self, config):
         '''Rewrite (and capture) the configuration of this object.'''
@@ -84,6 +111,7 @@ class AutoFactory (Configurable):
                 'Tried to access saved factory configuration before '
                 'yakonfig configuration was run.')
         return self._config
+
     @config.setter
     def config(self, c):
         self._config = c
@@ -123,103 +151,164 @@ class AutoFactory (Configurable):
 
         '''
         # If we got passed a string, find the thing to make.
-        if isinstance(configurable, str):
+        if isinstance(configurable, six.string_types):
             candidates = [ac for ac in self.sub_modules
                           if ac.config_name == configurable]
             if len(candidates) == 0:
                 raise KeyError(configurable)
             configurable = candidates[0]
 
-        # Regenerate the configuration ifneedbe.
+        # Regenerate the configuration if need be.
         if not isinstance(configurable, AutoConfigured):
-            configurable = AutoConfigured(configurable)
+            configurable = AutoConfigured.from_obj(configurable)
 
         if config is None:
             config = self.config.get(configurable.config_name, {})
-        # shallow-copy config and append kwargs to it
-        config = dict(config, **kwargs)
+
+        # Iteratively build up the argument list.  If you explicitly
+        # called this function with a config dictionary with extra
+        # parameters, those will be lost.
+        params = {}
+        for other, default in configurable.default_config.iteritems():
+            params[other] = kwargs.get(other, config.get(other, default))
         for other in getattr(configurable, 'services', []):
             # AutoConfigured.check_config() validates that this key
             # wasn't in the global config, so this must have come from
-            # either our own config parameter, a keyword arg, or
-            # the caller setting factory.config; trust those paths.
-            if other not in config:
-                # We're not catching an `AttributeError` exception here because
-                # it may case a net too wide which makes debugging underlying
-                # errors more difficult.
-                config[other] = getattr(self, other)
-        return configurable(**config)
+            # either our own config parameter, a keyword arg, or the
+            # caller setting factory.config; trust those paths.
+            if other == 'config':
+                params[other] = dict(config, **kwargs)
+            elif other in kwargs:
+                params[other] = kwargs[other]
+            elif other in config:
+                params[other] = config[other]
+            else:
+                # We're not catching an `AttributeError` exception
+                # here because it may case a net too wide which makes
+                # debugging underlying errors more difficult.
+                params[other] = getattr(self, other)
+        return configurable(**params)
 
 
 class AutoConfigured (Configurable):
+    '''Configurable proxy object for callable children.
+
+    This is an wrapper class that provides an implementation that
+    satisfies :class:`yakonfig.Configurable` for objects that can have
+    their configuration automatically discovered.
+
+    This class is for internal library use only and is not part
+    of the yakonfig factory API.
+
     '''
-    This is an **unexported** wrapper class that provides an
-    implementation that satisfies :class:`yakonfig.Configurable`
-    for objects that can have their configuration automatically
-    discovered.
-    '''
-    def __init__(self, obj):
+    def __init__(self, obj, config_name, services, default_config):
+        #: Callable object this proxies.
         self.obj = obj
-        self._discovered = self._discover_config()
-        self._config_name = self._discovered['name']
-        self._services = self._discovered['required']
-        self._default_config = self._discovered['defaults']
+        self._config_name = config_name
+        self._services = services
+        self._default_config = default_config
+
+    @classmethod
+    def from_obj(cls, obj, any_configurable=False):
+        '''Create a proxy object from a callable.
+
+        If `any_configurable` is true, `obj` takes a parameter named
+        ``config``, and `obj` smells like it implements
+        :class:`yakonfig.Configurable` (it has a
+        :attr:`~yakonfig.Configurable.config_name`), then return it
+        directly.
+
+        '''
+        discovered = cls.inspect_obj(obj)
+        if ((any_configurable and
+             'config' in discovered['required'] and
+             hasattr(obj, 'config_name'))):
+            return obj
+        return cls(obj, discovered['name'], discovered['required'],
+                   discovered['defaults'])
 
     def __call__(self, *args, **kwargs):
         return self.obj(*args, **kwargs)
 
     @property
     def config_name(self):
+        '''Name of this object as it appears in configuration.'''
         return self._config_name
 
     @property
     def services(self):
+        '''List of externally provided parameter names.'''
         return self._services
 
     @property
     def default_config(self):
+        '''Derived default configuration for this object.'''
         return self._default_config
 
     def check_config(self, config, name=''):
+        '''Check that the configuration for this object is valid.
+
+        This is a more restrictive check than for most :mod:`yakonfig`
+        objects.  It will raise :exc:`yakonfig.ConfigurationError` if
+        `config` contains any keys that are not in the underlying
+        callable's parameter list (that is, extra unused configuration
+        options).  This will also raise an exception if `config`
+        contains keys that duplicate parameters that should be
+        provided by the factory.
+
+        .. note:: This last behavior is subject to change; future
+                  versions of the library may allow configuration to
+                  provide local configuration for a factory-provided
+                  object.
+
+        :param dict config: the parent configuration dictionary,
+          probably contains :attr:`config_name` as a key
+        :param str name: qualified name of this object in the configuration
+        :raise: :exc:`yakonfig.ConfigurationError` if excess parameters exist
+
+        '''
         # This is assuming that `config` is the config dictionary of
         # the *config parent*. That is, `config[self.config_name]`
         # exists.
         config = config.get(self.config_name, {})
+
+        # Complain about additional parameters, unless this is an
+        # older object that's expecting a config dictionary.
         extras = set(config.keys()).difference(self.default_config)
-        if len(extras) > 0:
+        if 'config' not in self.services and extras:
             raise ConfigurationError(
                 'Unsupported config options for "%s": %s'
                 % (self.config_name, ', '.join(extras)))
 
+        # This only happens if you went out of your way to
+        # circumvent the configuration and delete a parameter.
         missing = set(self.default_config).difference(config)
-        if len(extras) > 0:
+        if missing:
             raise ConfigurationError(
                 'Missing config options for "%s": %s'
                 % (self.config_name, ', '.join(missing)))
 
-        for other in self.services:
-            if other in config:
-                # I don't know what the right thing to do is here,
-                # so be conservative and raise an error.
-                #
-                # N.B. I don't think this can happen when using auto-config
-                # because Python will not let you have `arg` and `arg=val`
-                # in the same parameter list. (`discover_config`, below,
-                # guarantees that positional and named parameters are 
-                # disjoint.)
-                raise ProgrammerError(
-                    'Configured object "%s" expects a '
-                    '"%s" object to be available (from its '
-                    'parameter list), but "%s" is already '
-                    'defined as "%s" in its configuration.'
-                    % (repr(self), other, other, config[other]))
+        # Did caller try to provide parameter(s) that we also expect
+        # the factory to provide?
+        duplicates = set(config.keys()).intersection(set(self.services))
+        if duplicates:
+            # N.B. I don't think the parameter can come from the
+            # default config because Python will not let you have
+            # `arg` and `arg=val` in the same parameter
+            # list. (`discover_config`, below, guarantees that
+            # positional and named parameters are disjoint.)
+            raise ConfigurationError(
+                'Disallowed config options for "%s": %s'
+                % (self.config_name, ', '.join(duplicates)))
 
-    def _discover_config(self):
-        '''
-        Given an object at ``self.obj``, which must be a function,
-        method or class, return a configuration *discovered* from
-        the name of the object and its parameter list. This function
-        is responsible for doing runtime reflection and providing
+    @staticmethod
+    def inspect_obj(obj):
+        '''Learn what there is to be learned from our target.
+
+        Given an object at `obj`, which must be a function, method or
+        class, return a configuration *discovered* from the name of
+        the object and its parameter list. This function is
+        responsible for doing runtime reflection and providing
         understandable failure modes.
 
         The return value is a dictionary with three keys: ``name``,
@@ -247,8 +336,8 @@ class AutoConfigured (Configurable):
 
         If reflection cannot be performed on ``obj``, then a ``TypeError``
         is raised.
+
         '''
-        obj = self.obj
         skip_params = 0
         if inspect.isfunction(obj):
             name = obj.__name__
@@ -289,7 +378,7 @@ class AutoConfigured (Configurable):
                 'The auto-configurable "%s" cannot contain '
                 '"*args" or "**kwargs" in its list of '
                 'parameters.' % repr(obj))
-        if not all(isinstance(arg, strtype) for arg in argspec.args):
+        if not all(isinstance(arg, six.string_types) for arg in argspec.args):
             raise ProgrammerError(
                 'Expected an auto-configurable with no nested '
                 'parameters, but "%s" seems to contain some '
