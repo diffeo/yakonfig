@@ -146,7 +146,7 @@
 from __future__ import absolute_import
 from yakonfig.configurable import Configurable, ProxyConfigurable, \
     NewSubModules, check_subconfig
-from yakonfig.exceptions import *
+from yakonfig.exceptions import ConfigurationError, ProgrammerError
 from yakonfig.merge import diff_config, overlay_config
 from yakonfig.toplevel import parse_args, set_default_config, \
     defaulted_config, check_toplevel_config, \

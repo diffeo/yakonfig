@@ -1,7 +1,7 @@
 """Configuration merging and diffing.
 
 .. This software is released under an MIT/X11 open source license.
-   Copyright 2014 Diffeo, Inc.
+   Copyright 2014-2015 Diffeo, Inc.
 
 Purpose
 =======
@@ -46,13 +46,15 @@ def overlay_config(c0, c1):
     :returntype dict:
 
     """
-    if not isinstance(c0, collections.Mapping): return c1
-    if not isinstance(c1, collections.Mapping): return c1
+    if not isinstance(c0, collections.Mapping):
+        return c1
+    if not isinstance(c1, collections.Mapping):
+        return c1
     result = dict()
     for k in c0.iterkeys():
         if k not in c1:
             result[k] = c0[k]
-    for k,v in c1.iteritems():
+    for k, v in c1.iteritems():
         if v is not None:
             if k in c0:
                 v = overlay_config(c0[k], v)
@@ -89,15 +91,17 @@ def diff_config(c0, c1):
         if c0 == c1:
             return {}
         return c1
-    if not isinstance(c1, collections.Mapping): return c1
+    if not isinstance(c1, collections.Mapping):
+        return c1
     result = dict()
     for k in c0.iterkeys():
         if k not in c1:
             result[k] = None
-    for k,v in c1.iteritems():
+    for k, v in c1.iteritems():
         if k in c0:
             merged = diff_config(c0[k], v)
-            if merged != {}: result[k] = merged
+            if merged != {}:
+                result[k] = merged
         else:
             result[k] = v
     return result

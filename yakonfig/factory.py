@@ -16,7 +16,7 @@ from yakonfig.configurable import Configurable
 from yakonfig.exceptions import ConfigurationError, ProgrammerError
 
 
-class AutoFactory (Configurable):
+class AutoFactory(Configurable):
     '''A configurable that discovers the its childrens' configuration.
 
     Clients that subclass :class:`AutoFactory` must implement the
@@ -190,7 +190,7 @@ class AutoFactory (Configurable):
         return configurable(**params)
 
 
-class AutoConfigured (Configurable):
+class AutoConfigured(Configurable):
     '''Configurable proxy object for callable children.
 
     This is an wrapper class that provides an implementation that

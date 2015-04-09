@@ -27,6 +27,7 @@ setup(
     url=URL,
     packages=find_packages(),
     classifiers=[
+        'Programming Language :: Python :: 2.7',
         'Development Status :: 3 - Alpha',
         'Topic :: Utilities',
         # MIT/X11 license http://opensource.org/licenses/MIT

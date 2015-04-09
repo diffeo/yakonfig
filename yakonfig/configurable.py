@@ -1,7 +1,7 @@
 """Base type for objects supporting yakonfig.
 
 .. This software is released under an MIT/X11 open source license.
-   Copyright 2014 Diffeo, Inc.
+   Copyright 2014-2015 Diffeo, Inc.
 
 Purpose
 =======
@@ -36,7 +36,7 @@ from __future__ import absolute_import
 import abc
 import collections
 
-import yakonfig
+from .exceptions import ProgrammerError
 
 class Configurable(object):
     """Description of yakonfig configuration.
@@ -202,8 +202,6 @@ class Configurable(object):
         """
         pass
 
-    pass
-
 class ProxyConfigurable(Configurable):
     '''A yakonfig configurable object that passes calls on to something else.
 
@@ -234,11 +232,16 @@ class ProxyConfigurable(Configurable):
         return getattr(super(ProxyConfigurable, self), name)
 
     @property
-    def config_name(self): return self._property('config_name')
+    def config_name(self):
+        return self._property('config_name')
+
     @property
-    def default_config(self): return self._property('default_config')
+    def default_config(self):
+        return self._property('default_config')
+
     @property
-    def sub_modules(self): return self._property('sub_modules')
+    def sub_modules(self):
+        return self._property('sub_modules')
 
     def add_arguments(self, parser):
         if hasattr(self.config, 'add_arguments'):
@@ -246,7 +249,8 @@ class ProxyConfigurable(Configurable):
         return super(ProxyConfigurable, self).add_arguments(parser)
 
     @property
-    def runtime_keys(self): return self._property('runtime_keys')
+    def runtime_keys(self):
+        return self._property('runtime_keys')
 
     def replace_config(self, config, name=''):
         if hasattr(self.config, 'replace_config'):
@@ -276,7 +280,7 @@ class NewSubModules(ProxyConfigurable):
 
     .. automethod: __init__
     '''
-    def __init__(self, config=None, sub_modules=[], *args, **kwargs):
+    def __init__(self, config=None, sub_modules=None, *args, **kwargs):
         '''Create a new proxy with new :attr:`sub_modules`.
 
         :param config: original `Configurable` object
@@ -286,10 +290,11 @@ class NewSubModules(ProxyConfigurable):
 
         '''
         super(NewSubModules, self).__init__(config=config, *args, **kwargs)
-        self._sub_modules = sub_modules
+        self._sub_modules = sub_modules or []
 
     @property
-    def sub_modules(self): return self._sub_modules
+    def sub_modules(self):
+        return self._sub_modules
 
 def check_subconfig(config, name, sub):
     """Validate the configuration of an object within this.
@@ -311,8 +316,7 @@ def check_subconfig(config, name, sub):
     subname = sub.config_name
     subconfig = config.setdefault(subname, {})
     if not isinstance(subconfig, collections.Mapping):
-        raise yakonfig.ProgrammerError('configuration for {} in {} '
-                                       'must be a mapping'
+        raise ProgrammerError('configuration for {} in {} must be a mapping'
                               .format(subname, name))
     checker = getattr(sub, 'check_config', None)
     if checker is not None:

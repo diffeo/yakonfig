@@ -183,10 +183,12 @@ class ArgParseCmd(Cmd):
             Cmd.do_help(self, '')
 
     def precmd(self, line):
-        if line == 'EOF': return 'quit'
+        if line == 'EOF':
+            return 'quit'
         return line
 
-    def args_quit(self, parser): pass
+    def args_quit(self, parser):
+        pass
     def do_quit(self, line):
         '''exit the program'''
         return True

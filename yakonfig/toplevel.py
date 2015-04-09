@@ -30,11 +30,11 @@ import copy
 from cStringIO import StringIO
 import sys
 
-import yaml
+import yaml as yaml_mod
 
-import yakonfig
-from yakonfig.merge import overlay_config, diff_config
-from yakonfig.yakonfig import _temporary_config
+from .exceptions import ConfigurationError, ProgrammerError
+from .merge import overlay_config, diff_config
+from .yakonfig import get_global_config, set_global_config, _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
 config_name = 'yakonfig'
@@ -54,7 +54,7 @@ def add_arguments(parser):
     parser.add_argument('--dump-config', metavar='WHAT', nargs='?',
                         help='dump out configuration then stop '
                         '(default, effective, full)')
-runtime_keys = { 'config': 'config' }
+runtime_keys = {'config': 'config'}
 
 def parse_args(parser, modules, args=None):
     """Set up global configuration for command-line tools.
@@ -88,22 +88,23 @@ def parse_args(parser, modules, args=None):
     namespace = parser.parse_args(args)
     try:
         do_dump_config = getattr(namespace, 'dump_config', None)
-        yakonfig.set_default_config(modules, params=vars(namespace), validate=not do_dump_config)
+        set_default_config(modules, params=vars(namespace),
+                           validate=not do_dump_config)
         if do_dump_config:
             if namespace.dump_config == 'full':
-                to_dump = yakonfig.get_global_config()
+                to_dump = get_global_config()
             elif namespace.dump_config == 'default':
                 to_dump = assemble_default_config(modules)
             else: # 'effective'
                 to_dump = diff_config(assemble_default_config(modules),
-                                      yakonfig.get_global_config())
-            yaml.dump(to_dump, sys.stdout)
+                                      get_global_config())
+            yaml_mod.dump(to_dump, sys.stdout)
             parser.exit()
-    except yakonfig.ConfigurationError, e:
+    except ConfigurationError, e:
         parser.error(e)
     return namespace
 
-def set_default_config(modules, params={}, yaml=None, filename=None,
+def set_default_config(modules, params=None, yaml=None, filename=None,
                        config=None, validate=True):
     """Set up global configuration for tests and noninteractive tools.
 
@@ -126,6 +127,8 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     :returntype: dict
 
     """
+    if params is None:
+        params = {}
 
     # Get the configuration from the file, or from params['config']
     file_config = {}
@@ -133,12 +136,11 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
         if 'config' in params and params['config'] is not None:
             filename = params['config']
     if yaml is not None or filename is not None or config is not None:
-        import yaml as y
         if yaml is not None:
-            file_config = y.load(StringIO(yaml))
+            file_config = yaml_mod.load(StringIO(yaml))
         elif filename is not None:
             with open(filename, 'r') as f:
-                file_config = y.load(f)
+                file_config = yaml_mod.load(f)
         elif config is not None:
             file_config = config
 
@@ -149,7 +151,7 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
     fill_in_arguments(base_config, modules, params)
     default_config = assemble_default_config(modules)
     base_config = overlay_config(default_config, base_config)
-    
+
     # Replace the modules list (accommodate external modules)
     def replace_module(config, m):
         name = getattr(m, 'config_name')
@@ -175,16 +177,16 @@ def set_default_config(modules, params={}, yaml=None, filename=None,
         checker = getattr(mod, 'check_config', None)
         if checker is not None:
             with _temporary_config():
-                yakonfig.set_global_config(base_config)
+                set_global_config(base_config)
                 checker(base_config[mod.config_name], mod.config_name)
 
     # All done, normalize and set the global configuration
     normalize_config(base_config, modules)
-    yakonfig.set_global_config(base_config)
+    set_global_config(base_config)
     return base_config
 
 @contextlib.contextmanager
-def defaulted_config(modules, params={}, yaml=None, filename=None,
+def defaulted_config(modules, params=None, yaml=None, filename=None,
                      config=None, validate=True):
     """Context manager version of :func:`set_default_config()`.
 
@@ -214,7 +216,7 @@ def defaulted_config(modules, params={}, yaml=None, filename=None,
     with _temporary_config():
         set_default_config(modules, params=params, yaml=yaml,
                            filename=filename, config=config, validate=validate)
-        yield yakonfig.get_global_config()
+        yield get_global_config()
 
 def check_toplevel_config(what, who):
     """Verify that some dependent configuration is present and correct.
@@ -234,9 +236,9 @@ def check_toplevel_config(what, who):
 
     """
     config_name = what.config_name
-    config = yakonfig.get_global_config()
+    config = get_global_config()
     if config_name not in config:
-        raise yakonfig.ConfigurationError(
+        raise ConfigurationError(
             '{} requires top-level configuration for {}'
             .format(who, config_name))
     checker = getattr(what, 'check_config', None)
@@ -266,8 +268,8 @@ def _recurse_config(parent_config, modules, f, prefix=''):
     for module in modules:
         config_name = getattr(module, 'config_name', None)
         if config_name is None:
-            raise yakonfig.ProgrammerError('{!r} must provide a config_name'
-                                           .format(module))
+            raise ProgrammerError('{!r} must provide a config_name'
+                                  .format(module))
         new_name = prefix + config_name
 
         f(parent_config, config_name, new_name, module)
@@ -301,7 +303,7 @@ def create_config_tree(config, modules, prefix=''):
             # this is the usual, expected case
             parent_config[config_name] = {}
         elif not isinstance(parent_config[config_name], collections.Mapping):
-            raise yakonfig.ConfigurationError(
+            raise ConfigurationError(
                 '{} must be an object configuration'.format(prefix))
         else:
             # config_name is a pre-existing dictionary in parent_config
@@ -330,10 +332,10 @@ def _walk_config(config, modules, f, prefix=''):
         # create_config_tree() needs to have been called by now
         # and you should never hit either of these asserts
         if config_name not in parent_config:
-            raise yakonfig.ProgrammerError('{} not present in configuration'
-                                           .format(prefix))
+            raise ProgrammerError('{} not present in configuration'
+                                  .format(prefix))
         if not isinstance(parent_config[config_name], collections.Mapping):
-            raise yakonfig.ConfigurationError(
+            raise ConfigurationError(
                 '{} must be an object configuration'.format(prefix))
 
         # do the work!
@@ -378,8 +380,8 @@ def assemble_default_config(modules):
     """
     def work_in(parent_config, config_name, prefix, module):
         if config_name in parent_config:
-            raise yakonfig.ProgrammerError('multiple modules providing {}'
-                                           .format(prefix))
+            raise ProgrammerError('multiple modules providing {}'
+                                  .format(prefix))
         parent_config[config_name] = dict(getattr(module, 'default_config', {}))
     return _recurse_config(dict(), modules, work_in)
 
