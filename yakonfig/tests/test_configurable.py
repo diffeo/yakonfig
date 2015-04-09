@@ -1,12 +1,9 @@
-"""Tests of various paths through yakonfig.Configurable.
+'''Tests of various paths through yakonfig.Configurable.
 
------
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2014-2015 Diffeo, Inc.
 
-This software is released under an MIT/X11 open source license.
-
-Copyright 2014 Diffeo, Inc.
-
-"""
+'''
 
 from __future__ import absolute_import
 
@@ -18,88 +15,122 @@ import yakonfig
 import yakonfig.tests.configurable_module
 import yakonfig.toplevel
 
+
 class ConfigurableSubclass(yakonfig.Configurable):
     @property
-    def config_name(self): return 'configurable'
+    def config_name(self):
+        return 'configurable'
+
     @property
-    def default_config(self): return { 'type': 'object' }
+    def default_config(self):
+        return {'type': 'object'}
+
 
 class ConfigurableLike(object):
     config_name = 'configurable'
-    default_config = { 'type': 'class' }
-    runtime_keys = { 'key': 'key' }
+    default_config = {'type': 'class'}
+    runtime_keys = {'key': 'key'}
+
 
 class ConfigurableArgs(yakonfig.Configurable):
     @property
-    def config_name(self): return 'config'
+    def config_name(self):
+        return 'config'
+
     @property
-    def default_config(self): return {'k': 'k'}
+    def default_config(self):
+        return {'k': 'k'}
+
     def add_arguments(self, parser):
         parser.add_argument('-k', '--key', metavar='VALUE')
+
     @property
-    def runtime_keys(self): return {'key': 'k'}
+    def runtime_keys(self):
+        return {'key': 'k'}
+
     def check_config(self, config, name=''):
         if len(config['k']) != 1:
             raise yakonfig.ConfigurationError("{} 'k' wrong length"
                                               .format(name))
 
+
 class ConfigurableBottom(object):
     config_name = 'bottom'
-    default_config = { 'zzz': '-32768' }
+    default_config = {'zzz': '-32768'}
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument('--zzz', '-z')
-    runtime_keys = { 'zzz': 'zzz' }
+
+    runtime_keys = {'zzz': 'zzz'}
+
 
 class ConfigurableTop(object):
     config_name = 'top'
-    default_config = { 'aaa': 'bbb' }
+    default_config = {'aaa': 'bbb'}
     sub_modules = [ConfigurableBottom]
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument('--aaa', '-a')
-    runtime_keys = { 'aaa': 'aaa' }
+
+    runtime_keys = {'aaa': 'aaa'}
+
 
 class ConfigurableAlmostTop(object):
     config_name = 'top'
-    default_config = { 'aaa': 'bbb' }
+    default_config = {'aaa': 'bbb'}
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument('--aaa', '-a')
-    runtime_keys = { 'aaa': 'aaa' }
+
+    runtime_keys = {'aaa': 'aaa'}
+
     @staticmethod
     def replace_config(config, name):
         return ConfigurableTop
 
+
 class ConfigurableLikeTop(object):
     config_name = 'top'
-    default_config = { 'aaa': 'bbb' }
+    default_config = {'aaa': 'bbb'}
+
     @staticmethod
     def add_arguments(parser):
         parser.add_argument('--aaa', '-a')
-    runtime_keys = { 'aaa': 'aaa' }
+
+    runtime_keys = {'aaa': 'aaa'}
+
     @staticmethod
     def replace_config(config, name):
-        return yakonfig.NewSubModules(ConfigurableLikeTop, [ConfigurableBottom])
+        return yakonfig.NewSubModules(ConfigurableLikeTop,
+                                      [ConfigurableBottom])
+
 
 class Dependent(object):
     config_name = 'dependent'
+
     @staticmethod
     def check_config(config, name):
         yakonfig.check_toplevel_config(ConfigurableArgs(), name)
 
+
 class Normalized(object):
     config_name = 'normalized'
-    default_config = { 'k': 'value' }
-    runtime_keys = { 'k': 'k' }
+    default_config = {'k': 'value'}
+    runtime_keys = {'k': 'k'}
+
     @staticmethod
     def normalize_config(config):
         config['k'] = config['k'][0]
 
+
 class Discovers(object):
     config_name = 'discovers'
-    default_config = { 'a': 'one', 'c': 'three' }
-    runtime_keys = { 'a': 'a', 'b': 'b', 'c': 'c' }
+    default_config = {'a': 'one', 'c': 'three'}
+    runtime_keys = {'a': 'a', 'b': 'b', 'c': 'c'}
+
     @staticmethod
     def discover_config(config, name):
         if 'a' not in config:
@@ -107,22 +138,34 @@ class Discovers(object):
         if 'b' not in config:
             config['b'] = 'bar'
 
+
+class NoneDefault(object):
+    config_name = 'none_default'
+    default_config = {'none': None}
+
+
 @pytest.fixture(params=['object', 'class', 'module'])
 def configurable_type(request):
     return request.param
 
+
 @pytest.fixture
 def a_configurable(configurable_type):
-    if configurable_type == 'object': return ConfigurableSubclass()
-    if configurable_type == 'class': return ConfigurableLike
-    if configurable_type == 'module': return yakonfig.tests.configurable_module
-    raise RuntimeError(t)
+    if configurable_type == 'object':
+        return ConfigurableSubclass()
+    if configurable_type == 'class':
+        return ConfigurableLike
+    if configurable_type == 'module':
+        return yakonfig.tests.configurable_module
+    raise KeyError(configurable_type)
+
 
 @pytest.yield_fixture
 def global_yakonfig(a_configurable):
     yakonfig.set_default_config([a_configurable])
     yield yakonfig.get_global_config()
     yakonfig.clear_global_config()
+
 
 def test_assemble_default_config(a_configurable, configurable_type):
     c = yakonfig.toplevel.assemble_default_config([a_configurable])
@@ -132,6 +175,7 @@ def test_assemble_default_config(a_configurable, configurable_type):
     assert cc['type'] == configurable_type
     assert cc.get('key') is None
 
+
 def test_assemble_minimal():
     class MinimallyConfigurable(object):
         config_name = 'minimal'
@@ -139,11 +183,13 @@ def test_assemble_minimal():
     assert sorted(c.iterkeys()) == ['minimal']
     assert c['minimal'] == {}
 
+
 def test_assemble_broken():
     class NotReallyConfigurable(object):
         pass
     with pytest.raises(yakonfig.ProgrammerError):
         yakonfig.toplevel.assemble_default_config([NotReallyConfigurable])
+
 
 def test_assemble_two():
     c = yakonfig.toplevel.assemble_default_config([ConfigurableArgs(),
@@ -152,10 +198,12 @@ def test_assemble_two():
     assert c['config'] == {'k': 'k'}
     assert c['configurable'] == {'type': 'object'}
 
+
 def test_duplicates():
     with pytest.raises(yakonfig.ProgrammerError):
         yakonfig.toplevel.assemble_default_config([ConfigurableLike,
                                                    ConfigurableSubclass()])
+
 
 def test_config_type(global_yakonfig, configurable_type):
     c = global_yakonfig
@@ -165,14 +213,16 @@ def test_config_type(global_yakonfig, configurable_type):
     assert cc['type'] == configurable_type
     assert cc.get('key') is None
 
+
 def test_fill_in():
-    c = { 'configurable': {} }
+    c = {'configurable': {}}
     yakonfig.toplevel.fill_in_arguments(c, [ConfigurableLike],
-                                        { 'key': 'value' })
+                                        {'key': 'value'})
     assert sorted(c.iterkeys()) == ['configurable']
     cc = c['configurable']
     assert sorted(cc.iterkeys()) == ['key']
     assert cc['key'] == 'value'
+
 
 def test_fill_in_replaces():
     c = { 'configurable': { 'key': 'old' } }
@@ -477,6 +527,7 @@ normalized:
 '''):
         assert yakonfig.get_global_config('normalized')['k'] == 'z'
 
+
 def test_discovery():
     with yakonfig.defaulted_config([Discovers]):
         # discovered overwrites default
@@ -485,8 +536,21 @@ def test_discovery():
         assert yakonfig.get_global_config('discovers', 'b') == 'bar'
         # undiscovered uses default value
         assert yakonfig.get_global_config('discovers', 'c') == 'three'
-    with yakonfig.defaulted_config([Discovers], { 'a': 'alpha' }):
+    with yakonfig.defaulted_config([Discovers], {'a': 'alpha'}):
         # command-line value overrules discovery
         assert yakonfig.get_global_config('discovers', 'a') == 'alpha'
         assert yakonfig.get_global_config('discovers', 'b') == 'bar'
         assert yakonfig.get_global_config('discovers', 'c') == 'three'
+
+
+def test_none_default():
+    with yakonfig.defaulted_config([NoneDefault]):
+        assert yakonfig.get_global_config('none_default', 'none') is None
+
+
+def test_none_default_rt():
+    with yakonfig.defaulted_config([NoneDefault]):
+        config = yakonfig.get_global_config()
+
+    with yakonfig.defaulted_config([NoneDefault], config=config):
+        assert yakonfig.get_global_config('none_default', 'none') is None

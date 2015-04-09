@@ -1,15 +1,13 @@
-"""Unit tests for yakonfig.merge.
+'''Unit tests for yakonfig.merge.
 
------
+.. This software is released under an MIT/X11 open source license.
+   Copyright 2014-2015 Diffeo, Inc.
 
-This software is released under an MIT/X11 open source license.
-
-Copyright 2014 Diffeo, Inc.
-
-"""
-
+'''
 from __future__ import absolute_import
+
 import yakonfig.merge
+
 
 def test_overlay():
     oc = yakonfig.merge.overlay_config
@@ -27,13 +25,18 @@ def test_overlay():
     assert (oc({'a': 'x', 'b': 'y'}, {'b': 'foo', 'c': 'bar'}) ==
             {'a': 'x', 'b': 'foo', 'c': 'bar'})
     # subobjects
-    assert (oc({'a': {'1': 'one'} }, {'a': {'2': 'two'} }) ==
-            {'a': {'1': 'one', '2': 'two' }})
-    assert (oc({'a': {'1': 'one'} }, {'a': {'1': None} }) ==
-            {'a': {} })
-    assert (oc({'a': {'1': 'one'} },
-               {'a': {'2': 'two'}, 'b': {'3': 'three'} }) ==
-            {'a': {'1': 'one', '2': 'two'}, 'b': {'3': 'three'} })
+    assert (oc({'a': {'1': 'one'}}, {'a': {'2': 'two'}}) ==
+            {'a': {'1': 'one', '2': 'two'}})
+    assert (oc({'a': {'1': 'one'}}, {'a': {'1': None}}) ==
+            {'a': {}})
+    assert (oc({'a': {'1': 'one'}},
+               {'a': {'2': 'two'}, 'b': {'3': 'three'}}) ==
+            {'a': {'1': 'one', '2': 'two'}, 'b': {'3': 'three'}})
+    # specialized None handling
+    assert oc({'a': None}, {}) == {'a': None}
+    assert oc({'a': None}, {'a': 1}) == {'a': 1}
+    assert oc({'a': None}, {'a': None}) == {'a': None}
+
 
 def test_diff():
     dc = yakonfig.merge.diff_config

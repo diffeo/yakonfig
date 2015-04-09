@@ -1,27 +1,30 @@
-"""Top-level entry points to yakonfig.
+'''Top-level entry points to yakonfig.
 
 .. This software is released under an MIT/X11 open source license.
-   Copyright 2014 Diffeo, Inc.
+   Copyright 2014-2015 Diffeo, Inc.
 
-Purpose
-=======
+Most programs' `main()` functions will call yakonfig as::
 
-Most programs' `main()` functions will call yakonfig as:
-
->>> parser = argparse.ArgumentParser()
->>> yakonfig.parse_args(parser, [yakonfig, module, module...])
+    parser = argparse.ArgumentParser()
+    yakonfig.parse_args(parser, [yakonfig, module, module...])
 
 where the list of modules are top-level modules or other
 :class:`yakonfig.Configurable` objects the program uses.
 
-Test code and other things not driven by argparse can instead call
+Test code and other things not driven by argparse can instead call::
 
->>> yakonfig.set_default_config([yakonfig, module, module, ...])
+    yakonfig.set_default_config([yakonfig, module, module, ...])
 
-Module Contents
-===============
+or::
 
-"""
+    with yakofnig.defaulted_config([yakonfig, ...]):
+      ...
+
+.. autofunction:: parse_args
+.. autofunction:: set_default_config
+.. autofunction:: defaulted_config
+
+'''
 
 from __future__ import absolute_import
 import collections
@@ -38,6 +41,8 @@ from .yakonfig import get_global_config, set_global_config, _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
 config_name = 'yakonfig'
+
+
 def add_arguments(parser):
     '''Add command-line arguments for yakonfig proper.
 
@@ -55,6 +60,7 @@ def add_arguments(parser):
                         help='dump out configuration then stop '
                         '(default, effective, full)')
 runtime_keys = {'config': 'config'}
+
 
 def parse_args(parser, modules, args=None):
     """Set up global configuration for command-line tools.
@@ -95,7 +101,7 @@ def parse_args(parser, modules, args=None):
                 to_dump = get_global_config()
             elif namespace.dump_config == 'default':
                 to_dump = assemble_default_config(modules)
-            else: # 'effective'
+            else:  # 'effective'
                 to_dump = diff_config(assemble_default_config(modules),
                                       get_global_config())
             yaml_mod.dump(to_dump, sys.stdout)
@@ -103,6 +109,7 @@ def parse_args(parser, modules, args=None):
     except ConfigurationError, e:
         parser.error(e)
     return namespace
+
 
 def set_default_config(modules, params=None, yaml=None, filename=None,
                        config=None, validate=True):
@@ -185,6 +192,7 @@ def set_default_config(modules, params=None, yaml=None, filename=None,
     set_global_config(base_config)
     return base_config
 
+
 @contextlib.contextmanager
 def defaulted_config(modules, params=None, yaml=None, filename=None,
                      config=None, validate=True):
@@ -218,6 +226,7 @@ def defaulted_config(modules, params=None, yaml=None, filename=None,
                            filename=filename, config=config, validate=validate)
         yield get_global_config()
 
+
 def check_toplevel_config(what, who):
     """Verify that some dependent configuration is present and correct.
 
@@ -244,6 +253,7 @@ def check_toplevel_config(what, who):
     checker = getattr(what, 'check_config', None)
     if checker:
         checker(config[config_name], config_name)
+
 
 def _recurse_config(parent_config, modules, f, prefix=''):
     '''Walk through the module tree.
@@ -279,6 +289,7 @@ def _recurse_config(parent_config, modules, f, prefix=''):
                         f,
                         new_name + '.')
     return parent_config
+
 
 def create_config_tree(config, modules, prefix=''):
     '''Cause every possible configuration sub-dictionary to exist.
@@ -343,6 +354,7 @@ def _walk_config(config, modules, f, prefix=''):
 
     return _recurse_config(config, modules, work_in)
 
+
 def collect_add_argparse(parser, modules):
     """Add all command-line options.
 
@@ -364,6 +376,7 @@ def collect_add_argparse(parser, modules):
     _recurse_config(dict(), modules, work_in)
     return parser
 
+
 def assemble_default_config(modules):
 
     """Build the default configuration from a set of modules.
@@ -382,8 +395,10 @@ def assemble_default_config(modules):
         if config_name in parent_config:
             raise ProgrammerError('multiple modules providing {}'
                                   .format(prefix))
-        parent_config[config_name] = dict(getattr(module, 'default_config', {}))
+        parent_config[config_name] = dict(getattr(module, 'default_config',
+                                                  {}))
     return _recurse_config(dict(), modules, work_in)
+
 
 def fill_in_arguments(config, modules, args):
     """Fill in configuration fields from command-line arguments.
@@ -414,6 +429,7 @@ def fill_in_arguments(config, modules, args):
         args = vars(args)
     return _walk_config(config, modules, work_in)
 
+
 def do_config_discovery(config, modules):
     '''Let modules detect additional configuration values.
 
@@ -431,8 +447,10 @@ def do_config_discovery(config, modules):
     '''
     def work_in(config, module, name):
         f = getattr(module, 'discover_config', None)
-        if f: f(config, name)
+        if f:
+            f(config, name)
     return _walk_config(config, modules, work_in)
+
 
 def normalize_config(config, modules):
     """Normalize configuration values in the entire tree.
@@ -451,5 +469,6 @@ def normalize_config(config, modules):
     """
     def work_in(config, module, name):
         f = getattr(module, 'normalize_config', None)
-        if f: f(config)
+        if f:
+            f(config)
     return _walk_config(config, modules, work_in)
