@@ -14,6 +14,8 @@ to another (:func:`overlay_config`), and to do the reverse
 from __future__ import absolute_import
 import collections
 
+from six import iteritems, iterkeys
+
 
 def overlay_config(base, overlay):
     '''Overlay one configuration over another.
@@ -51,10 +53,10 @@ def overlay_config(base, overlay):
     if not isinstance(overlay, collections.Mapping):
         return overlay
     result = dict()
-    for k in base.iterkeys():
+    for k in iterkeys(base):
         if k not in overlay:
             result[k] = base[k]
-    for k, v in overlay.iteritems():
+    for k, v in iteritems(overlay):
         if v is not None or (k in base and base[k] is None):
             if k in base:
                 v = overlay_config(base[k], v)
@@ -95,10 +97,10 @@ def diff_config(base, target):
     if not isinstance(target, collections.Mapping):
         return target
     result = dict()
-    for k in base.iterkeys():
+    for k in iterkeys(base):
         if k not in target:
             result[k] = None
-    for k, v in target.iteritems():
+    for k, v in iteritems(target):
         if k in base:
             merged = diff_config(base[k], v)
             if merged != {}:

@@ -30,9 +30,9 @@ from __future__ import absolute_import
 import collections
 import contextlib
 import copy
-from cStringIO import StringIO
 import sys
 
+from six import iteritems, StringIO
 import yaml as yaml_mod
 
 from .exceptions import ConfigurationError, ProgrammerError
@@ -106,7 +106,7 @@ def parse_args(parser, modules, args=None):
                                       get_global_config())
             yaml_mod.dump(to_dump, sys.stdout)
             parser.exit()
-    except ConfigurationError, e:
+    except ConfigurationError as e:
         parser.error(e)
     return namespace
 
@@ -421,7 +421,7 @@ def fill_in_arguments(config, modules, args):
     """
     def work_in(config, module, name):
         rkeys = getattr(module, 'runtime_keys', {})
-        for (attr, cname) in rkeys.iteritems():
+        for (attr, cname) in iteritems(rkeys):
             v = args.get(attr, None)
             if v is not None:
                 config[cname] = v

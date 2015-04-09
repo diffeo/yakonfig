@@ -1,13 +1,13 @@
 #!python
 
-from __future__ import absolute_import
+from __future__ import absolute_import, division, print_function
 import argparse
 import logging
 import os
 import tempfile
-from StringIO import StringIO
 
 import pytest
+from six import StringIO
 
 from yakonfig import set_global_config, get_global_config, clear_global_config
 ## for use in fixture below
@@ -94,24 +94,24 @@ def test_include_real_paths(reset_globals):
     t1 = tempfile.NamedTemporaryFile()
     t2 = tempfile.NamedTemporaryFile()
     t3 = tempfile.NamedTemporaryFile()
-    y1 = '''
+    y1 = u'''
 t1:
   k3: !include_yaml %s
   k4: !include_yaml %s
 ''' % (t2.name, os.path.basename(t3.name))
-    print y1
-    y2 = 'dog'
-    y3 = 'two'
-    t1.write(y1)
-    t2.write(y2)
-    t3.write(y3)
+    print(y1)
+    y2 = u'dog'
+    y3 = u'two'
+    t1.write(y1.encode('utf-8'))
+    t2.write(y2.encode('utf-8'))
+    t3.write(y3.encode('utf-8'))
     t1.flush()
     t2.flush()
     t3.flush()
 
     config = set_global_config(t1.name)
     assert get_global_config() is config
-    print config
+    print(config)
     sub_config = get_global_config('t1')
     assert sub_config is config['t1']
     assert sub_config['k3'] == y2

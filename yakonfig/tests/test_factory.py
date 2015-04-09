@@ -7,11 +7,14 @@ from yakonfig import ConfigurationError, ProgrammerError
 from yakonfig.factory import AutoFactory, AutoConfigured
 
 
-def test_no_tuple_unpacking():
-    def fun((a, b)):
-        pass
-    with pytest.raises(ProgrammerError):
-        AutoConfigured.inspect_obj(fun)
+# AutoFactory rejects this; but in part because it's outright invalid syntax
+# in Python 3.  There's no way to really include it in a dual-version file.
+#
+# def test_no_tuple_unpacking():
+#     def fun((a, b)):
+#         pass
+#     with pytest.raises(ProgrammerError):
+#         AutoConfigured.inspect_obj(fun)
 
 
 def test_no_var_args():

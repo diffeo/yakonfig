@@ -10,7 +10,7 @@ from __future__ import absolute_import, division, print_function
 import abc
 import inspect
 
-import six
+from six import iteritems, string_types
 
 from yakonfig.configurable import Configurable
 from yakonfig.exceptions import ConfigurationError, ProgrammerError
@@ -151,7 +151,7 @@ class AutoFactory(Configurable):
 
         '''
         # If we got passed a string, find the thing to make.
-        if isinstance(configurable, six.string_types):
+        if isinstance(configurable, string_types):
             candidates = [ac for ac in self.sub_modules
                           if ac.config_name == configurable]
             if len(candidates) == 0:
@@ -169,7 +169,7 @@ class AutoFactory(Configurable):
         # called this function with a config dictionary with extra
         # parameters, those will be lost.
         params = {}
-        for other, default in configurable.default_config.iteritems():
+        for other, default in iteritems(configurable.default_config):
             params[other] = kwargs.get(other, config.get(other, default))
         for other in getattr(configurable, 'services', []):
             # AutoConfigured.check_config() validates that this key
@@ -378,7 +378,7 @@ class AutoConfigured(Configurable):
                 'The auto-configurable "%s" cannot contain '
                 '"*args" or "**kwargs" in its list of '
                 'parameters.' % repr(obj))
-        if not all(isinstance(arg, six.string_types) for arg in argspec.args):
+        if not all(isinstance(arg, string_types) for arg in argspec.args):
             raise ProgrammerError(
                 'Expected an auto-configurable with no nested '
                 'parameters, but "%s" seems to contain some '

@@ -30,6 +30,7 @@
 # contains the following line:
 #
 #   include RELEASE-VERSION
+from __future__ import absolute_import, division, print_function
  
 __all__ = ("get_git_version")
 
@@ -51,7 +52,8 @@ def call_git_describe(abbrev=4):
     try:
         p = Popen(['git', 'describe', '--abbrev=%d' % abbrev],
                   stdout=PIPE, stderr=PIPE, 
-                  cwd=os.path.dirname(os.path.abspath(__file__)))
+                  cwd=os.path.dirname(os.path.abspath(__file__)),
+                  universal_newlines=True)
         p.stderr.close()
         describe_line = p.stdout.readlines()[0].strip()
 
@@ -75,16 +77,16 @@ def call_git_describe(abbrev=4):
 
         return version, source_hash
  
-    except Exception, exc:
+    except Exception as exc:
         sys.stderr.write('line: %r\n' % line)
         sys.stderr.write(traceback.format_exc(exc))
         try:
             sys.stderr.write('p.stderr.read()=%s\n' % p.stderr.read())
-        except Exception, exc:
+        except Exception as exc:
             sys.stderr.write(traceback.format_exc(exc))
         try:
             sys.stderr.write('os.getcwd()=%s\n' % os.getcwd())
-        except Exception, exc:
+        except Exception as exc:
             sys.stderr.write(traceback.format_exc(exc))
         return None, None
  
@@ -145,4 +147,4 @@ def get_git_version(abbrev=4):
  
  
 if __name__ == "__main__":
-    print get_git_version()
+    print(get_git_version())

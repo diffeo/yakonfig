@@ -15,6 +15,7 @@ import importlib
 import logging
 import os
 
+from six import string_types
 import yaml
 
 logger = logging.getLogger('yakonfig')
@@ -111,7 +112,7 @@ def set_global_config(path_dict_or_stream):
     global _config_file_path
     global _config_cache
 
-    if isinstance(path_dict_or_stream, basestring):
+    if isinstance(path_dict_or_stream, string_types):
         path = path_dict_or_stream
         if _config_file_path and _config_file_path != path:
             raise Exception('set_global_config(%r) differs from %r, '

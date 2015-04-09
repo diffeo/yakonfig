@@ -10,6 +10,7 @@ from __future__ import absolute_import
 import argparse
 
 import pytest
+from six import iterkeys
 
 import yakonfig
 import yakonfig.tests.configurable_module
@@ -169,9 +170,9 @@ def global_yakonfig(a_configurable):
 
 def test_assemble_default_config(a_configurable, configurable_type):
     c = yakonfig.toplevel.assemble_default_config([a_configurable])
-    assert sorted(c.iterkeys()) == ['configurable']
+    assert sorted(iterkeys(c)) == ['configurable']
     cc = c['configurable']
-    assert sorted(cc.iterkeys()) == ['type']
+    assert sorted(iterkeys(cc)) == ['type']
     assert cc['type'] == configurable_type
     assert cc.get('key') is None
 
@@ -180,7 +181,7 @@ def test_assemble_minimal():
     class MinimallyConfigurable(object):
         config_name = 'minimal'
     c = yakonfig.toplevel.assemble_default_config([MinimallyConfigurable])
-    assert sorted(c.iterkeys()) == ['minimal']
+    assert sorted(iterkeys(c)) == ['minimal']
     assert c['minimal'] == {}
 
 
@@ -194,7 +195,7 @@ def test_assemble_broken():
 def test_assemble_two():
     c = yakonfig.toplevel.assemble_default_config([ConfigurableArgs(),
                                                    ConfigurableSubclass()])
-    assert sorted(c.iterkeys()) == ['config', 'configurable']
+    assert sorted(iterkeys(c)) == ['config', 'configurable']
     assert c['config'] == {'k': 'k'}
     assert c['configurable'] == {'type': 'object'}
 
@@ -207,9 +208,9 @@ def test_duplicates():
 
 def test_config_type(global_yakonfig, configurable_type):
     c = global_yakonfig
-    assert sorted(c.iterkeys()) == ['configurable']
+    assert sorted(iterkeys(c)) == ['configurable']
     cc = c['configurable']
-    assert sorted(cc.iterkeys()) == ['type']
+    assert sorted(iterkeys(cc)) == ['type']
     assert cc['type'] == configurable_type
     assert cc.get('key') is None
 
@@ -218,9 +219,9 @@ def test_fill_in():
     c = {'configurable': {}}
     yakonfig.toplevel.fill_in_arguments(c, [ConfigurableLike],
                                         {'key': 'value'})
-    assert sorted(c.iterkeys()) == ['configurable']
+    assert sorted(iterkeys(c)) == ['configurable']
     cc = c['configurable']
-    assert sorted(cc.iterkeys()) == ['key']
+    assert sorted(iterkeys(cc)) == ['key']
     assert cc['key'] == 'value'
 
 
@@ -228,9 +229,9 @@ def test_fill_in_replaces():
     c = { 'configurable': { 'key': 'old' } }
     yakonfig.toplevel.fill_in_arguments(c, [ConfigurableLike],
                                         { 'key': 'new' })
-    assert sorted(c.iterkeys()) == ['configurable']
+    assert sorted(iterkeys(c)) == ['configurable']
     cc = c['configurable']
-    assert sorted(cc.iterkeys()) == ['key']
+    assert sorted(iterkeys(cc)) == ['key']
     assert cc['key'] == 'new'
 
 def test_fill_in_object():
@@ -239,9 +240,9 @@ def test_fill_in_object():
             self.key = 'value'
     c = { 'configurable': {} }
     yakonfig.toplevel.fill_in_arguments(c, [ConfigurableLike], Params())
-    assert sorted(c.iterkeys()) == ['configurable']
+    assert sorted(iterkeys(c)) == ['configurable']
     cc = c['configurable']
-    assert sorted(cc.iterkeys()) == ['key']
+    assert sorted(iterkeys(cc)) == ['key']
     assert cc['key'] == 'value'    
 
 def test_default_file(request):
@@ -250,9 +251,9 @@ def test_default_file(request):
         filename=str(request.fspath.dirpath('argconfig.yaml')))
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['config']
+        assert sorted(iterkeys(c)) == ['config']
         cc = c['config']
-        assert sorted(cc.iterkeys()) == ['k']
+        assert sorted(iterkeys(cc)) == ['k']
         assert cc['k'] == 'x'
     finally:
         yakonfig.clear_global_config()
@@ -261,9 +262,9 @@ def test_fill_in_kvp():
     yakonfig.set_default_config([ConfigurableLike], { 'key': 'value' })
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['configurable']
+        assert sorted(iterkeys(c)) == ['configurable']
         cc = c['configurable']
-        assert sorted(cc.iterkeys()) == ['key', 'type']
+        assert sorted(iterkeys(cc)) == ['key', 'type']
         assert cc['type'] == 'class'
         assert cc['key'] == 'value'
     finally:
@@ -277,9 +278,9 @@ configurable:
     yakonfig.set_default_config([ConfigurableLike], yaml=the_yaml)
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['configurable']
+        assert sorted(iterkeys(c)) == ['configurable']
         cc = c['configurable']
-        assert sorted(cc.iterkeys()) == ['key', 'type']
+        assert sorted(iterkeys(cc)) == ['key', 'type']
         assert cc['type'] == 'class'
         assert cc['key'] == 'yaml'
     finally:
@@ -296,9 +297,9 @@ configurable:
                                 yaml=the_yaml)
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['configurable']
+        assert sorted(iterkeys(c)) == ['configurable']
         cc = c['configurable']
-        assert sorted(cc.iterkeys()) == ['key', 'type']
+        assert sorted(iterkeys(cc)) == ['key', 'type']
         assert cc['type'] == 'class'
         assert cc['key'] == 'value'
     finally:
@@ -310,9 +311,9 @@ def test_dont_validate():
                                 validate=False)
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['config']
+        assert sorted(iterkeys(c)) == ['config']
         cc = c['config']
-        assert sorted(cc.iterkeys()) == ['k']
+        assert sorted(iterkeys(cc)) == ['k']
         assert cc['k'] == 'longer than one char'
     finally:
         yakonfig.clear_global_config()
@@ -321,12 +322,12 @@ def test_two_level():
     yakonfig.set_default_config([ConfigurableTop])
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['top']
+        assert sorted(iterkeys(c)) == ['top']
         c = c['top']
-        assert sorted(c.iterkeys()) == ['aaa', 'bottom']
+        assert sorted(iterkeys(c)) == ['aaa', 'bottom']
         assert c['aaa'] == 'bbb'
         c = c['bottom']
-        assert sorted(c.iterkeys()) == ['zzz']
+        assert sorted(iterkeys(c)) == ['zzz']
         assert c['zzz'] == '-32768'
     finally:
         yakonfig.clear_global_config()
@@ -336,12 +337,12 @@ def test_two_level_args():
                                 { 'aaa': 'a', 'bbb': 'b', 'zzz': 'z' })
     try:
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['top']
+        assert sorted(iterkeys(c)) == ['top']
         c = c['top']
-        assert sorted(c.iterkeys()) == ['aaa', 'bottom']
+        assert sorted(iterkeys(c)) == ['aaa', 'bottom']
         assert c['aaa'] == 'a'
         c = c['bottom']
-        assert sorted(c.iterkeys()) == ['zzz']
+        assert sorted(iterkeys(c)) == ['zzz']
         assert c['zzz'] == 'z'
     finally:
         yakonfig.clear_global_config()
@@ -450,7 +451,7 @@ def test_check_dependent():
     # application so it shouldn't be checked
     with yakonfig.defaulted_config([ConfigurableArgs(), ConfigurableLike],
                                    {'key': 'value'}) as config:
-        assert sorted(config.iterkeys()) == ['config', 'configurable']
+        assert sorted(iterkeys(config)) == ['config', 'configurable']
         with pytest.raises(yakonfig.ConfigurationError):
             yakonfig.check_toplevel_config(ConfigurableArgs(), 'test')
         with pytest.raises(yakonfig.ConfigurationError):
@@ -460,7 +461,7 @@ def test_check_toplevel():
     '''check_config_toplevel() should work in check_config() implementation'''
     with yakonfig.defaulted_config([ConfigurableArgs(), Dependent],
                                    {'key': 'k'}) as config:
-        assert sorted(config.iterkeys()) == ['config', 'dependent']
+        assert sorted(iterkeys(config)) == ['config', 'dependent']
         assert config['config']['k'] == 'k'
     with pytest.raises(yakonfig.ConfigurationError):
         with yakonfig.defaulted_config([ConfigurableArgs(), Dependent],
@@ -474,7 +475,7 @@ def test_check_toplevel_args():
                         ['--key', 'k'])
     try:
         config = yakonfig.get_global_config()
-        assert sorted(config.iterkeys()) == ['config', 'dependent']
+        assert sorted(iterkeys(config)) == ['config', 'dependent']
         assert config['config']['k'] == 'k'
     finally:
         yakonfig.clear_global_config()
@@ -489,18 +490,18 @@ def test_proxy_two_level():
             [yakonfig.ProxyConfigurable(ConfigurableTop)],
             { 'aaa': 'a', 'bbb': 'b', 'zzz': 'z' }):
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['top']
+        assert sorted(iterkeys(c)) == ['top']
         c = c['top']
-        assert sorted(c.iterkeys()) == ['aaa', 'bottom']
+        assert sorted(iterkeys(c)) == ['aaa', 'bottom']
         assert c['aaa'] == 'a'
         c = c['bottom']
-        assert sorted(c.iterkeys()) == ['zzz']
+        assert sorted(iterkeys(c)) == ['zzz']
         assert c['zzz'] == 'z'
 
 def test_replaces_direct():
     with yakonfig.defaulted_config([ConfigurableAlmostTop]):
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['top']
+        assert sorted(iterkeys(c)) == ['top']
         c = c['top']
         assert 'bottom' in c
         c = c['bottom']
@@ -509,7 +510,7 @@ def test_replaces_direct():
 def test_replaces_proxy():
     with yakonfig.defaulted_config([ConfigurableLikeTop]):
         c = yakonfig.get_global_config()
-        assert sorted(c.iterkeys()) == ['top']
+        assert sorted(iterkeys(c)) == ['top']
         c = c['top']
         assert 'bottom' in c
         c = c['bottom']
