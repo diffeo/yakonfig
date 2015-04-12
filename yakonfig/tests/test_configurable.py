@@ -51,7 +51,7 @@ class ConfigurableArgs(yakonfig.Configurable):
 
     def check_config(self, config, name=''):
         if len(config['k']) != 1:
-            raise yakonfig.ConfigurationError("{} 'k' wrong length"
+            raise yakonfig.ConfigurationError("{0} 'k' wrong length"
                                               .format(name))
 
 

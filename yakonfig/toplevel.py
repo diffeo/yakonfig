@@ -248,7 +248,7 @@ def check_toplevel_config(what, who):
     config = get_global_config()
     if config_name not in config:
         raise ConfigurationError(
-            '{} requires top-level configuration for {}'
+            '{0} requires top-level configuration for {1}'
             .format(who, config_name))
     checker = getattr(what, 'check_config', None)
     if checker:
@@ -278,7 +278,7 @@ def _recurse_config(parent_config, modules, f, prefix=''):
     for module in modules:
         config_name = getattr(module, 'config_name', None)
         if config_name is None:
-            raise ProgrammerError('{!r} must provide a config_name'
+            raise ProgrammerError('{0!r} must provide a config_name'
                                   .format(module))
         new_name = prefix + config_name
 
@@ -315,7 +315,7 @@ def create_config_tree(config, modules, prefix=''):
             parent_config[config_name] = {}
         elif not isinstance(parent_config[config_name], collections.Mapping):
             raise ConfigurationError(
-                '{} must be an object configuration'.format(prefix))
+                '{0} must be an object configuration'.format(prefix))
         else:
             # config_name is a pre-existing dictionary in parent_config
             pass
@@ -343,11 +343,11 @@ def _walk_config(config, modules, f, prefix=''):
         # create_config_tree() needs to have been called by now
         # and you should never hit either of these asserts
         if config_name not in parent_config:
-            raise ProgrammerError('{} not present in configuration'
+            raise ProgrammerError('{0} not present in configuration'
                                   .format(prefix))
         if not isinstance(parent_config[config_name], collections.Mapping):
             raise ConfigurationError(
-                '{} must be an object configuration'.format(prefix))
+                '{0} must be an object configuration'.format(prefix))
 
         # do the work!
         f(parent_config[config_name], module, prefix)
@@ -393,7 +393,7 @@ def assemble_default_config(modules):
     """
     def work_in(parent_config, config_name, prefix, module):
         if config_name in parent_config:
-            raise ProgrammerError('multiple modules providing {}'
+            raise ProgrammerError('multiple modules providing {0}'
                                   .format(prefix))
         parent_config[config_name] = dict(getattr(module, 'default_config',
                                                   {}))

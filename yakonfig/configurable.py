@@ -316,8 +316,8 @@ def check_subconfig(config, name, sub):
     subname = sub.config_name
     subconfig = config.setdefault(subname, {})
     if not isinstance(subconfig, collections.Mapping):
-        raise ProgrammerError('configuration for {} in {} must be a mapping'
+        raise ProgrammerError('configuration for {0} in {1} must be a mapping'
                               .format(subname, name))
     checker = getattr(sub, 'check_config', None)
     if checker is not None:
-        checker(subconfig, '{}.{}'.format(name, subname))
+        checker(subconfig, '{0}.{1}'.format(name, subname))

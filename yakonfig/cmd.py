@@ -164,7 +164,7 @@ class ArgParseCmd(Cmd):
             f = getattr(self, 'do_' + args.command, None)
             if not f:
                 msg = self.nohelp % (args.command,)
-                self.stdout.write('{}\n'.format(msg))
+                self.stdout.write('{0}\n'.format(msg))
                 return
 
             docstr = getattr(f, '__doc__', None)
@@ -178,7 +178,7 @@ class ArgParseCmd(Cmd):
             else:
                 if not docstr:
                     docstr = self.nohelp % (args.command,)
-                self.stdout.write('{}\n'.format(docstr))
+                self.stdout.write('{0}\n'.format(docstr))
         else:
             Cmd.do_help(self, '')
 
