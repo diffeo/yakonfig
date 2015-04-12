@@ -392,6 +392,6 @@ class AutoConfigured(Configurable):
         return {
             'name': name,
             'required': argspec.args[skip_params:i_defaults],
-            'defaults': {k: defaults[i]
-                         for i, k in enumerate(argspec.args[i_defaults:])},
+            'defaults': dict([(k, defaults[i])
+                              for i, k in enumerate(argspec.args[i_defaults:])]),
         }
