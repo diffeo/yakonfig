@@ -11,7 +11,6 @@ keys from it.
 from __future__ import absolute_import
 import collections
 import contextlib
-import importlib
 import logging
 import os
 
@@ -37,31 +36,6 @@ class Loader(yaml.Loader):
             self._root = None
         super(Loader, self).__init__(stream)
 
-    def include_func(self, node):
-        '''
-        call a python function to inject values into the yaml, such as
-        a function that provides default yaml for loading.
-        '''
-        mod_name = self.construct_scalar(node)
-        parts = mod_name.split('.')
-        if not len(parts) >= 2:
-            raise Exception('!include_func expects full.path.to.func(), '
-                            'not %r' % mod_name)
-        func_name = parts[-1]
-        mod_name = '.'.join(parts[:-1])
-        mod = importlib.import_module(mod_name)
-        func = getattr(mod, func_name, None)
-        if not func:
-            raise Exception('%r not found in %r, dir(%r) = %r' %
-                            (func_name, mod_name, mod_name, dir(mod)))
-
-        if func_name.endswith('yaml'):
-            # functions named ".*yaml$" must return YAML to which we
-            # apply this Loader
-            return yaml.load(func(), Loader)
-        else:
-            return func()
-
     def include_yaml(self, node):
         '''
         load another yaml file from the path specified by node's value
@@ -82,7 +56,6 @@ class Loader(yaml.Loader):
         '''
         return open(*args, **kwargs)
 
-Loader.add_constructor('!include_func', Loader.include_func)
 Loader.add_constructor('!include_yaml', Loader.include_yaml)
 Loader.add_constructor('!include', Loader.include_yaml)
 
