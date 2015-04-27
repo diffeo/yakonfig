@@ -73,7 +73,7 @@ def call_git_describe(abbrev=4):
             lasti = len(version_parts) - 1
             # increment whatever the last part of this a.b.c.d.yadda
             version_parts[lasti] = str(int(version_parts[lasti]) + 1)
-            version = '{}.dev{}'.format('.'.join(version_parts), rel)
+            version = '{0}.dev{1}'.format('.'.join(version_parts), rel)
 
         return version, source_hash
  
