@@ -37,6 +37,7 @@ setup(
         'pexpect',
     ],
     install_requires=[
+        'importlib',
         'pyyaml',
         'six',
     ],
