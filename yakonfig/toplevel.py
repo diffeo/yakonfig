@@ -30,6 +30,7 @@ from __future__ import absolute_import
 import collections
 import contextlib
 import copy
+import logging
 import sys
 
 from six import iteritems, StringIO
@@ -41,6 +42,9 @@ from .yakonfig import get_global_config, set_global_config, _temporary_config
 
 # These implement the Configurable interface for yakonfig proper!
 config_name = 'yakonfig'
+
+
+logger = logging.getLogger(__name__)
 
 
 def add_arguments(parser):
@@ -284,10 +288,15 @@ def _recurse_config(parent_config, modules, f, prefix=''):
 
         f(parent_config, config_name, new_name, module)
 
-        _recurse_config((parent_config or {}).get(config_name, None),
-                        getattr(module, 'sub_modules', []),
-                        f,
-                        new_name + '.')
+        try:
+            _recurse_config((parent_config or {}).get(config_name, None),
+                            getattr(module, 'sub_modules', []),
+                            f,
+                            new_name + '.')
+        except:
+            # achieve a sort of stack trace on the way out
+            logger.error('exception in _recurse_config of %s', module)
+            raise
     return parent_config
 
 
@@ -392,11 +401,13 @@ def assemble_default_config(modules):
 
     """
     def work_in(parent_config, config_name, prefix, module):
+        my_config = dict(getattr(module, 'default_config', {}))
         if config_name in parent_config:
-            raise ProgrammerError('multiple modules providing {0}'
-                                  .format(prefix))
-        parent_config[config_name] = dict(getattr(module, 'default_config',
-                                                  {}))
+            extra_config = parent_config[config_name]
+            raise ProgrammerError(
+                'config for {0} already present when about to fetch {3}.default_config (had {1!r} would have set {2!r})'.format(
+                    prefix, extra_config, my_config, module))
+        parent_config[config_name] = my_config
     return _recurse_config(dict(), modules, work_in)
 
 
