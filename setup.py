@@ -33,11 +33,7 @@ setup(
         # MIT/X11 license http://opensource.org/licenses/MIT
         'License :: OSI Approved :: MIT License',
     ],
-    tests_require=[
-        'pexpect',
-    ],
     install_requires=[
-        'importlib',
         'pyyaml',
         'six',
     ],
